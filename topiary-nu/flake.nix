@@ -13,6 +13,7 @@
     };
   };
   outputs = {
+    self,
     nixpkgs,
     flake-utils,
     tree-sitter-nu,
@@ -40,8 +41,8 @@
             gcc -shared -o $out/lib/tree_sitter_nu.so src/parser.c src/scanner.c -I./src
           '';
         };
-      in {
-        packages.default = pkgs.stdenvNoCC.mkDerivation {
+
+        topiaryNu = pkgs.stdenvNoCC.mkDerivation {
           name = "topiary-nu";
           src = topiary-nushell;
 
@@ -63,6 +64,13 @@
             cp -r $src/languages $out
           '';
         };
+      in {
+        packages.default = topiaryNu;
       }
-    );
+    )
+    // {
+      overlays.default = final: prev: {
+        topiary-nu = self.packages.${final.system}.default;
+      };
+    };
 }
