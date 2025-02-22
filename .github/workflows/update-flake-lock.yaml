@@ -1,0 +1,25 @@
+name: update-flake-lock
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "0 0 * * 3" # runs weekly on Wednesday at 00:00
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update topiary-nu flake.lock
+        uses: DeterminateSystems/update-flake-lock@main
+        with:
+          path-to-flake-dir: topiary-nu/
+          pr-title: "Update topiary-nu flake.lock"
+          pr-labels: |
+            dependencies
+            automated
