@@ -1,0 +1,14 @@
+---
+name: flakes
+
+path: .
+windows:
+  - name: code
+    panes:
+      - commands: # each pane/window can run commands
+          - command: nvim
+
+  - name: misc
+    panes:
+      - flex: 1
+      - flex: 1
