@@ -21,9 +21,15 @@ jobs:
 
       - name: Update topiary-nu flake.lock
         uses: DeterminateSystems/update-flake-lock@main
+        id: update
         with:
           path-to-flake-dir: topiary-nu/
           pr-title: "Update topiary-nu flake.lock"
           pr-labels: |
             dependencies
             automated
+
+      - name: Automatic Merge
+        run: "gh pr merge --auto --squash ${{ steps.update.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
