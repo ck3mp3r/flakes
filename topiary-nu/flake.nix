@@ -33,7 +33,7 @@
           buildInputs = [pkgs.tree-sitter pkgs.nodejs pkgs.gcc];
 
           buildPhase = ''
-            tree-sitter generate
+            tree-sitter generate --abi=14
           '';
 
           installPhase = ''
