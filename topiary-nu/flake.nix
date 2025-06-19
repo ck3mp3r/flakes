@@ -30,7 +30,7 @@
           name = "tree-sitter-nu";
           src = tree-sitter-nu;
 
-          buildInputs = [pkgs.tree-sitter pkgs.nodejs pkgs.gcc];
+          buildInputs = [pkgs.tree-sitter pkgs.nodejs];
 
           buildPhase = ''
             tree-sitter generate --abi=14
@@ -38,7 +38,8 @@
 
           installPhase = ''
             mkdir -p $out/lib
-            gcc -shared -o $out/lib/tree_sitter_nu.so src/parser.c src/scanner.c -I./src
+            NIX_LDFLAGS="-rpath $out/lib"
+            $CC $CFLAGS $NIX_LDFLAGS -shared -o $out/lib/tree_sitter_nu.so src/parser.c src/scanner.c -I./src
           '';
         };
 
