@@ -11,7 +11,7 @@ This flake packages the mods CLI tool, which allows you to interact with AI mode
 - Built from the latest upstream source
 - Go module with proper dependency management
 - Includes version information in binary
-- MIT licensed
+- Apache 2.0 licensed (this flake)
 - Cross-platform support (Linux, macOS, Windows)
 
 ## Usage

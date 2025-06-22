@@ -70,4 +70,4 @@ Feel free to submit PRs for additional useful flakes or improvements to existing
 
 ## License
 
-This repository is licensed under the MIT License. Individual packages may have their own licenses - see their respective documentation for details.
+This repository is licensed under the Apache License 2.0. Individual packages may have their own licenses - see their respective documentation for details.
