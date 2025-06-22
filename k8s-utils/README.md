@@ -14,6 +14,7 @@ This flake bundles the following Kubernetes-related applications:
 
 ### Development & Testing
 - **kind** - Kubernetes in Docker - local Kubernetes clusters
+- **tilt** - A toolkit for fixing the pains of microservice development
 - **colima** - Container runtime for macOS (Darwin only)
 
 ### Monitoring & Debugging

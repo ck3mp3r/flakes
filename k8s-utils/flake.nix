@@ -29,6 +29,7 @@
               kubernetes-helm
               kustomize
               stern
+              tilt
             ]
             ++ lib.optionals stdenv.isDarwin [colima];
           pathsToLink = ["/bin" "/share"];
