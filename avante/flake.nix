@@ -104,7 +104,11 @@
     )
     // {
       overlays.default = final: prev: {
-        avante-nvim = self.packages.${final.system}.default;
+        vimPlugins =
+          prev.vimPlugins
+          // {
+            avante-nvim = self.packages.${final.system}.default;
+          };
       };
     };
 }
