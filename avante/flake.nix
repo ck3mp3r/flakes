@@ -52,7 +52,7 @@
         };
         avante-nvim = pkgs.vimUtils.buildVimPlugin {
           pname = "avante.nvim";
-          src = avante-nvim-lib;
+          src = avante-src;
           inherit version;
 
           dependencies = with pkgs.vimPlugins; [

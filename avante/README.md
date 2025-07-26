@@ -8,7 +8,7 @@ A Nix flake for [avante.nvim](https://github.com/yetone/avante.nvim) — AI-powe
 
 ## How to use this flake
 
-You can use this flake to provide the avante.nvim plugin for Neovim in your Nix-based configuration. For example, to build the plugin:
+You can use this flake to build the avante.nvim plugin:
 
 ```bash
 nix build .#avante-nvim
@@ -16,7 +16,7 @@ nix build .#avante-nvim
 
 ### Example: Use the overlay in another flake
 
-To use avante.nvim from this flake in another Nix flake, add it to your `inputs` and apply the overlay:
+This flake provides an overlay that exposes `avante-nvim` as a plugin in `pkgs.vimPlugins`. To use it in another flake, add it to your `inputs` and apply the overlay:
 
 ```nix
 {
@@ -33,12 +33,15 @@ To use avante.nvim from this flake in another Nix flake, add it to your `inputs`
         overlays = [ avante.overlays.default ];
       };
     in {
-      packages.avante-nvim = pkgs.avante-nvim;
+      # You can now use pkgs.vimPlugins.avante-nvim in your Neovim configuration
+      neovimWithAvante = pkgs.neovim.override {
+        plugins = [ pkgs.vimPlugins.avante-nvim ];
+      };
     };
 }
 ```
 
-After applying the overlay, `pkgs.avante-nvim` is available as a package and can be used in your Neovim configuration or elsewhere in your Nix setup.
+After applying the overlay, use `pkgs.vimPlugins.avante-nvim` directly in your configuration.
 
 ## Upstream
 
