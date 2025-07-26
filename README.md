@@ -9,7 +9,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 | [☸️ k8s-utils](./k8s-utils/) | Comprehensive Kubernetes CLI tools bundle | `nix shell github:ck3mp3r/flakes?dir=k8s-utils` |
 | [🤖 mods](./mods/) | AI on the command line | `nix run github:ck3mp3r/flakes?dir=mods` |
 | [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
-| [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin, see [README](./avante/README.md) |
+| [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin |
 
 ## Quick Start
 
@@ -33,32 +33,6 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 ```
 
 Replace `<flake-name>` with `kubernetes`, `mods`, or `topiary-nu`.
-
-## Detailed Documentation
-
-Each flake has its own detailed README with usage examples, configuration instructions, and build information:
-
-- **[k8s-utils/README.md](./k8s-utils/README.md)** - Complete documentation for Kubernetes CLI tools bundle
-- **[mods/README.md](./mods/README.md)** - Complete documentation for the AI CLI tool
-- **[topiary-nu/README.md](./topiary-nu/README.md)** - Complete documentation for Nushell formatting
-
-## Repository Structure
-
-```
-├── k8s-utils/     # Kubernetes CLI tools bundle flake
-│   ├── flake.nix
-│   ├── flake.lock
-│   └── README.md
-├── mods/           # AI CLI tool flake
-│   ├── flake.nix
-│   ├── flake.lock
-│   └── README.md
-├── topiary-nu/     # Nushell formatter flake  
-│   ├── flake.nix
-│   ├── flake.lock
-│   └── README.md
-└── README.md       # This file
-```
 
 ## Contributing
 
