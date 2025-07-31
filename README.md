@@ -8,6 +8,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 |-------|-------------|-------------|
 | [☸️ k8s-utils](./k8s-utils/) | Comprehensive Kubernetes CLI tools bundle | `nix shell github:ck3mp3r/flakes?dir=k8s-utils` |
 | [🤖 mods](./mods/) | AI on the command line | `nix run github:ck3mp3r/flakes?dir=mods` |
+| [🪨 crush](./crush/) | Glamourous AI coding TUI agent | `nix run github:ck3mp3r/flakes?dir=crush` |
 | [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
 | [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin |
 
@@ -32,7 +33,7 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 }
 ```
 
-Replace `<flake-name>` with `kubernetes`, `mods`, or `topiary-nu`.
+Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, or `topiary-nu`.
 
 ## Contributing
 
