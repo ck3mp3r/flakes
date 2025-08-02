@@ -45,7 +45,7 @@
         then {config = targetSystem;}
         else null;
     };
-    fenixToolchain = fenix.packages.${targetSystem}.stable.toolchain;
+    fenixToolchain = fenix.packages.${buildSystem}.stable.toolchain;
     rustTarget = rustTargetForSystem targetSystem;
     rustStd =
       if buildSystem != targetSystem
