@@ -12,7 +12,6 @@
     ...
   }: let
     lib = {
-      semverVersion = import ./lib/semverVersion.nix;
       rustMultiarch = import ./lib/rustMultiarch.nix;
       archiveAndHash = import ./lib/archiveAndHash.nix;
     };
