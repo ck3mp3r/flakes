@@ -11,6 +11,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 | [🪨 crush](./crush/) | Glamourous AI coding TUI agent | `nix run github:ck3mp3r/flakes?dir=crush` |
 | [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
 | [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin |
+| [🧰 nix-utils](./nix-utils/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./nix-utils/README.md) |
 
 ## Quick Start
 
@@ -33,7 +34,7 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 }
 ```
 
-Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, or `topiary-nu`.
+Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, or `nix-utils`.
 
 ## Contributing
 
