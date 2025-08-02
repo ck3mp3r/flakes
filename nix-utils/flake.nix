@@ -7,20 +7,23 @@
   };
 
   outputs = {
-    nixpkgs,
+    # nixpkgs,
     flake-utils,
     ...
-  }:
+  }: let
+    lib = {
+      semver-version = import ./lib/semver-version.nix;
+      rust-multiarch = import ./lib/rust-multiarch.nix;
+    };
+  in
     flake-utils.lib.eachDefaultSystem (
       system: let
-        pkgs = import nixpkgs {inherit system;};
+        # pkgs = import nixpkgs {inherit system;};
       in {
         packages = {};
-        # Export library functions
-        lib = {
-          semver-version = import ./lib/semver-version.nix;
-          rust-multiarch = import ./lib/rust-multiarch.nix;
-        };
       }
-    );
+    )
+    // {
+      lib = lib;
+    };
 }
