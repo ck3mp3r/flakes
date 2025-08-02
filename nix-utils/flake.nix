@@ -1,5 +1,5 @@
 {
-  description = "A Nix flake with flake-utils and nixpkgs, ready for local development";
+  description = "A Nix flake with flake-utils, nixpkgs, and Alejandra for formatting.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -7,22 +7,22 @@
   };
 
   outputs = {
-    # nixpkgs,
+    nixpkgs,
     flake-utils,
     ...
   }: let
     lib = {
-      semver-version = import ./lib/semver-version.nix;
-      rust-multiarch = import ./lib/rust-multiarch.nix;
+      semverVersion = import ./lib/semverVersion.nix;
+      rustMultiarch = import ./lib/rustMultiarch.nix;
+      archiveAndHash = import ./lib/archiveAndHash.nix;
     };
   in
-    flake-utils.lib.eachDefaultSystem (
-      system: let
-        # pkgs = import nixpkgs {inherit system;};
-      in {
-        packages = {};
-      }
-    )
+    flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {inherit system;};
+    in {
+      packages = {};
+      formatter = pkgs.alejandra;
+    })
     // {
       lib = lib;
     };
