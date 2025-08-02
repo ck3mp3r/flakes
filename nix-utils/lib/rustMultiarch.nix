@@ -23,6 +23,16 @@
   pname = cargo.package.name;
   version = cargo.package.version;
 
+  rustTargetForSystem = system:
+    {
+      "aarch64-linux" = "aarch64-unknown-linux-gnu";
+      "x86_64-linux" = "x86_64-unknown-linux-gnu";
+      "aarch64-darwin" = "aarch64-apple-darwin";
+      "x86_64-darwin" = "x86_64-apple-darwin";
+    }.${
+      system
+    } or (throw "No Rust target triple for system: ${system}");
+
   mkRustPkg = {
     buildSystem,
     targetSystem,
@@ -36,10 +46,10 @@
         else null;
     };
     fenixToolchain = fenix.packages.${targetSystem}.stable.toolchain;
-    # Add rust-std for cross targets
+    rustTarget = rustTargetForSystem targetSystem;
     rustStd =
       if buildSystem != targetSystem
-      then fenix.packages.${buildSystem}.targets.${targetSystem}.stable.rust-std
+      then fenix.packages.${buildSystem}.targets.${rustTarget}.stable.rust-std
       else null;
     rustPlatform = pkgs.makeRustPlatform {
       cargo = fenixToolchain;
