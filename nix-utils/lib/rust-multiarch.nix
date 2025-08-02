@@ -2,9 +2,8 @@
   nixpkgs,
   fenix,
   overlays ? [],
-  pname,
-  version,
   src,
+  cargoToml,
   cargoLock,
   extraArgs ? {},
 }: let
@@ -14,6 +13,10 @@
     "aarch64-linux"
     "x86_64-linux"
   ];
+
+  cargo = builtins.fromTOML (builtins.readFile cargoToml);
+  pname = cargo.package.name;
+  version = cargo.package.version;
 
   mkRustPkg = {
     buildSystem,
