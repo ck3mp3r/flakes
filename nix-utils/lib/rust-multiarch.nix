@@ -1,19 +1,18 @@
 {
-  nixpkgs,
+  cargoLock,
+  cargoToml,
+  extraArgs ? {},
   fenix,
+  nixpkgs,
   overlays ? [],
   src,
-  cargoToml,
-  cargoLock,
-  extraArgs ? {},
-}: let
-  systems = [
+  systems ? [
     "aarch64-darwin"
     "x86_64-darwin"
     "aarch64-linux"
     "x86_64-linux"
-  ];
-
+  ],
+}: let
   cargo = builtins.fromTOML (builtins.readFile cargoToml);
   pname = cargo.package.name;
   version = cargo.package.version;
