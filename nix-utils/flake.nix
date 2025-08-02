@@ -15,6 +15,7 @@
       system: let
         pkgs = import nixpkgs {inherit system;};
       in {
+        packages = {};
         # Export library functions
         lib = {
           semver-version = import ./lib/semver-version.nix;
