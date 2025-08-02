@@ -22,7 +22,7 @@
 in
   pkgs.runCommand "${name}-bundle" {} ''
     mkdir -p $out
-    cp ${tgz} $out/
-    cp ${nixHash} $out/
-    cp ${sha256} $out/
+    install -m644 ${tgz} $out/${name}.tgz
+    install -m644 ${nixHash} $out/${name}-nix.sha256
+    install -m644 ${sha256} $out/${name}.sha256
   ''
