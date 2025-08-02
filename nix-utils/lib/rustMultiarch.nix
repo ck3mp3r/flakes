@@ -1,4 +1,5 @@
 {
+  archiveAndHash ? false,
   cargoLock,
   cargoToml,
   extraArgs ? {},
@@ -12,7 +13,6 @@
     "aarch64-linux"
     "x86_64-linux"
   ],
-  archiveAndHash ? false,
 }: let
   archiveAndHashLib =
     if archiveAndHash
