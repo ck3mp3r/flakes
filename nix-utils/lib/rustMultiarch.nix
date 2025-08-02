@@ -80,7 +80,7 @@
       )
     );
   in
-    {default = native;} // cross;
+    {default = native; ${host} = native;} // cross;
 in
   builtins.listToAttrs (map (host: {
       name = host;
