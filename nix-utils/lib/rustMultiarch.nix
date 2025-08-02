@@ -36,6 +36,11 @@
         else null;
     };
     fenixToolchain = fenix.packages.${targetSystem}.stable.toolchain;
+    # Add rust-std for cross targets
+    rustStd =
+      if buildSystem != targetSystem
+      then fenix.packages.${buildSystem}.targets.${targetSystem}.stable.rust-std
+      else null;
     rustPlatform = pkgs.makeRustPlatform {
       cargo = fenixToolchain;
       rustc = fenixToolchain;
@@ -43,6 +48,13 @@
     };
     drv = rustPlatform.buildRustPackage ({
         inherit pname version src cargoLock;
+        buildInputs =
+          (extraArgs.buildInputs or [])
+          ++ (
+            if rustStd != null
+            then [rustStd]
+            else []
+          );
       }
       // extraArgs);
     wrapped =
@@ -80,7 +92,11 @@
       )
     );
   in
-    {default = native; ${host} = native;} // cross;
+    {
+      default = native;
+      ${host} = native;
+    }
+    // cross;
 in
   builtins.listToAttrs (map (host: {
       name = host;
