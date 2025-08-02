@@ -4,7 +4,7 @@
   name ? "artifact",
   compress ? true,
 }: let
-  artifact =
+  tgz =
     if compress
     then
       pkgs.runCommand "${name}.tgz" {buildInputs = [pkgs.gnutar pkgs.gzip];} ''
@@ -13,17 +13,16 @@
     else drv;
 
   nixHash = pkgs.runCommand "${name}-nix.sha256" {buildInputs = [pkgs.nix];} ''
-    nix-hash --type sha256 --flat --base32 ${artifact} > $out
+    nix-hash --type sha256 --flat --base32 ${tgz} > $out
   '';
 
   sha256 = pkgs.runCommand "${name}.sha256" {buildInputs = [pkgs.coreutils];} ''
-    sha256sum ${artifact} | cut -f1 -d' ' > $out
+    sha256sum ${tgz} | cut -f1 -d' ' > $out
   '';
 in
-  artifact
-  // {
-    inherit nixHash sha256;
-    pname = drv.pname or name;
-    version = drv.version or "unknown";
-    meta = drv.meta or {};
-  }
+  pkgs.runCommand "${name}-bundle" {} ''
+    mkdir -p $out
+    cp ${tgz} $out/
+    cp ${nixHash} $out/
+    cp ${sha256} $out/
+  ''
