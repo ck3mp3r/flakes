@@ -12,7 +12,13 @@
     "aarch64-linux"
     "x86_64-linux"
   ],
+  archiveAndHash ? false,
 }: let
+  archiveAndHashLib =
+    if archiveAndHash
+    then import ./archiveAndHash.nix
+    else null;
+
   cargo = builtins.fromTOML (builtins.readFile cargoToml);
   pname = cargo.package.name;
   version = cargo.package.version;
@@ -35,13 +41,22 @@
       rustc = fenixToolchain;
       rust-analyzer = fenixToolchain;
     };
-  in
-    rustPlatform.buildRustPackage ({
+    drv = rustPlatform.buildRustPackage ({
         inherit pname version src cargoLock;
       }
       // extraArgs);
+    wrapped =
+      if archiveAndHashLib != null
+      then
+        archiveAndHashLib {
+          inherit pkgs drv;
+          name = pname;
+          compress = true;
+        }
+      else drv;
+  in
+    wrapped;
 
-  # For each host, expose default (native) and all cross builds
   perHost = host: let
     native = mkRustPkg {
       buildSystem = host;
