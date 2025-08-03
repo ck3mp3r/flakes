@@ -12,11 +12,15 @@ let
     src,
     system,
     systems,
+    linuxVariant ? "musl",
   }: let
     utils = import ../utils.nix;
     crossPkgs = target: let
       isCrossCompiling = target != system;
-      fenixTarget = utils.getTarget target;
+      fenixTarget = utils.getTarget {
+        system = target;
+        variant = linuxVariant;
+      };
       tmpPkgs = import nixpkgs {
         inherit overlays system;
         crossSystem =

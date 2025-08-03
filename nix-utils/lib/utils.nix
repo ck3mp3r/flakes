@@ -7,10 +7,13 @@ let
     platform = builtins.elemAt parts 1;
   };
 
-  getTarget = system:
+  getTarget = {
+    system,
+    variant ? "musl",
+  }:
     {
-      "aarch64-linux" = "aarch64-unknown-linux-musl";
-      "x86_64-linux" = "x86_64-unknown-linux-musl";
+      "aarch64-linux" = "aarch64-unknown-linux-${variant}";
+      "x86_64-linux" = "x86_64-unknown-linux-${variant}";
       "aarch64-darwin" = "aarch64-apple-darwin";
       "x86_64-darwin" = "x86_64-apple-darwin";
     }
