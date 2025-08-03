@@ -3,15 +3,16 @@
   drv,
   name,
 }: let
-  tgz = pkgs.runCommand "${name}.tgz" {buildInputs = [pkgs.gnutar pkgs.gzip];} ''
+  buildPkgs = pkgs.buildPackages;
+  tgz = pkgs.runCommand "${name}.tgz" {buildInputs = [buildPkgs.gnutar buildPkgs.gzip];} ''
     tar czf $out -C ${drv} .
   '';
 
-  nixHash = pkgs.runCommand "${name}-nix.sha256" {buildInputs = [pkgs.nix];} ''
+  nixHash = pkgs.runCommand "${name}-nix.sha256" {buildInputs = [buildPkgs.nix];} ''
     nix-hash --type sha256 --flat --base32 ${tgz} > $out
   '';
 
-  sha256 = pkgs.runCommand "${name}.sha256" {buildInputs = [pkgs.nix];} ''
+  sha256 = pkgs.runCommand "${name}.sha256" {buildInputs = [buildPkgs.nix];} ''
     nix-hash --type sha256 --flat --base16 ${tgz} > $out
   '';
 in
