@@ -6,6 +6,7 @@ let
     extraArgs ? {},
     fenix,
     installData,
+    linuxVariant ? "musl",
     nixpkgs,
     overlays,
     pkgs,
@@ -15,19 +16,33 @@ let
   }: let
     utils = import ../utils.nix;
     crossPkgs = target: let
-      isCrossCompiling = target != system;
-      fenixTarget = utils.getTarget target;
-      tmpPkgs = import nixpkgs {
-        inherit overlays system;
-        crossSystem =
-          if isCrossCompiling || pkgs.stdenv.isLinux
-          then {
-            config = fenixTarget;
-            rustc = {config = fenixTarget;};
-            isStatic = pkgs.stdenv.isLinux;
-          }
-          else null;
+      fenixTarget = utils.getTarget {
+        system = target;
+        variant = linuxVariant;
       };
+      isTargetLinux = builtins.match ".*-linux" target != null;
+      isNative = target == system;
+
+      tmpPkgs =
+        if isNative && isTargetLinux
+        then (import nixpkgs {inherit overlays system;}).pkgsStatic
+        else
+          import nixpkgs {
+            inherit overlays system;
+            crossSystem =
+              if isNative
+              then null
+              else
+                {
+                  config = fenixTarget;
+                  rustc = {config = fenixTarget;};
+                }
+                // (
+                  if isTargetLinux
+                  then {isStatic = true;}
+                  else {}
+                );
+          };
       toolchain = with fenix.packages.${system};
         combine [
           stable.cargo
@@ -58,7 +73,7 @@ let
           if archiveAndHash
           then
             archiveAndHashLib {
-              pkgs = cross.pkgs;
+              inherit pkgs;
               drv = plain;
               name = cargoToml.package.name;
             }

@@ -11,8 +11,8 @@
     nix-hash --type sha256 --flat --base32 ${tgz} > $out
   '';
 
-  sha256 = pkgs.runCommand "${name}.sha256" {buildInputs = [pkgs.coreutils];} ''
-    sha256sum ${tgz} | cut -f1 -d' ' > $out
+  sha256 = pkgs.runCommand "${name}.sha256" {buildInputs = [pkgs.nix];} ''
+    nix-hash --type sha256 --flat --base16 ${tgz} > $out
   '';
 in
   pkgs.runCommand "${name}-bundle" {} ''
