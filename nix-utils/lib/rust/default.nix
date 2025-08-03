@@ -73,7 +73,7 @@ let
           if archiveAndHash
           then
             archiveAndHashLib {
-              pkgs = cross.pkgs;
+              inherit pkgs;
               drv = plain;
               name = cargoToml.package.name;
             }
