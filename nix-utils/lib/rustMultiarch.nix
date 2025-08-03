@@ -45,26 +45,23 @@
         then {config = targetSystem;}
         else null;
     };
-    fenixToolchain = fenix.packages.${buildSystem}.stable.toolchain;
+    fenixPkgs = fenix.packages.${buildSystem};
     rustTarget = rustTargetForSystem targetSystem;
-    rustStd =
-      if buildSystem != targetSystem
-      then fenix.packages.${buildSystem}.targets.${rustTarget}.stable.rust-std
-      else null;
+    toolchain = fenixPkgs.combine (
+      [fenixPkgs.stable.cargo fenixPkgs.stable.rustc]
+      ++ (
+        if buildSystem != targetSystem
+        then [fenixPkgs.targets.${rustTarget}.stable.rust-std]
+        else []
+      )
+    );
     rustPlatform = pkgs.makeRustPlatform {
-      cargo = fenixToolchain;
-      rustc = fenixToolchain;
-      rust-analyzer = fenixToolchain;
+      cargo = toolchain;
+      rustc = toolchain;
     };
     drv = rustPlatform.buildRustPackage ({
         inherit pname version src cargoLock;
-        buildInputs =
-          (extraArgs.buildInputs or [])
-          ++ (
-            if rustStd != null
-            then [rustStd]
-            else []
-          );
+        buildInputs = extraArgs.buildInputs or [];
       }
       // extraArgs);
     wrapped =
