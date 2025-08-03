@@ -12,8 +12,9 @@
     ...
   }: let
     lib = {
-      rustMultiarch = import ./lib/rustMultiarch.nix;
+      rust = import ./lib/rust;
       archiveAndHash = import ./lib/archiveAndHash.nix;
+      utils = import ./lib/utils.nix;
     };
   in
     flake-utils.lib.eachDefaultSystem (system: let
