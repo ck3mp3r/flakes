@@ -23,6 +23,16 @@
   pname = cargo.package.name;
   version = cargo.package.version;
 
+  rustTargetForSystem = system:
+    {
+      "aarch64-linux" = "aarch64-unknown-linux-gnu";
+      "x86_64-linux" = "x86_64-unknown-linux-gnu";
+      "aarch64-darwin" = "aarch64-apple-darwin";
+      "x86_64-darwin" = "x86_64-apple-darwin";
+    }.${
+      system
+    } or (throw "No Rust target triple for system: ${system}");
+
   mkRustPkg = {
     buildSystem,
     targetSystem,
@@ -35,14 +45,23 @@
         then {config = targetSystem;}
         else null;
     };
-    fenixToolchain = fenix.packages.${targetSystem}.stable.toolchain;
+    fenixPkgs = fenix.packages.${buildSystem};
+    rustTarget = rustTargetForSystem targetSystem;
+    toolchain = fenixPkgs.combine (
+      [fenixPkgs.stable.cargo fenixPkgs.stable.rustc]
+      ++ (
+        if buildSystem != targetSystem
+        then [fenixPkgs.targets.${rustTarget}.stable.rust-std]
+        else []
+      )
+    );
     rustPlatform = pkgs.makeRustPlatform {
-      cargo = fenixToolchain;
-      rustc = fenixToolchain;
-      rust-analyzer = fenixToolchain;
+      cargo = toolchain;
+      rustc = toolchain;
     };
     drv = rustPlatform.buildRustPackage ({
         inherit pname version src cargoLock;
+        buildInputs = extraArgs.buildInputs or [];
       }
       // extraArgs);
     wrapped =
@@ -80,7 +99,11 @@
       )
     );
   in
-    {default = native;} // cross;
+    {
+      default = native;
+      ${host} = native;
+    }
+    // cross;
 in
   builtins.listToAttrs (map (host: {
       name = host;
