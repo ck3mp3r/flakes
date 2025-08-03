@@ -1,16 +1,11 @@
 {
   pkgs,
   drv,
-  name ? "artifact",
-  compress ? true,
+  name,
 }: let
-  tgz =
-    if compress
-    then
-      pkgs.runCommand "${name}.tgz" {buildInputs = [pkgs.gnutar pkgs.gzip];} ''
-        tar czf $out -C ${drv} .
-      ''
-    else drv;
+  tgz = pkgs.runCommand "${name}.tgz" {buildInputs = [pkgs.gnutar pkgs.gzip];} ''
+    tar czf $out -C ${drv} .
+  '';
 
   nixHash = pkgs.runCommand "${name}-nix.sha256" {buildInputs = [pkgs.nix];} ''
     nix-hash --type sha256 --flat --base32 ${tgz} > $out
