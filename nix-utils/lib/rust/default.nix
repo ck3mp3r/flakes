@@ -21,13 +21,23 @@ let
         variant = linuxVariant;
       };
       isTargetLinux = builtins.match ".*-linux" target != null;
+      isNative = target == system;
+
       tmpPkgs = import nixpkgs {
         inherit overlays system;
-        crossSystem = {
-          config = fenixTarget;
-          isStatic = isTargetLinux;
-          rustc = {config = fenixTarget;};
-        };
+        crossSystem =
+          if isNative
+          then null # Don't set crossSystem for native builds
+          else
+            {
+              config = fenixTarget;
+              rustc = {config = fenixTarget;};
+            }
+            // (
+              if isTargetLinux
+              then {isStatic = true;}
+              else {}
+            );
       };
       toolchain = with fenix.packages.${system};
         combine [
