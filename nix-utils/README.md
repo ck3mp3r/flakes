@@ -1,11 +1,14 @@
 # nix-utils
 
-Reusable Nix library functions for multi-architecture Rust builds and artifact packaging.
+Reusable Nix library functions for multi-architecture Rust builds, artifact archiving/hashing, and platform/architecture helpers.
 
 ## Provided Utilities
 
-- **rustMultiarch**: Build Rust projects for multiple architectures (native and cross) using Fenix and overlays. Optionally archives and hashes outputs for easy distribution and verification.
-- **archiveAndHash**: Wraps any build output, producing a directory with a `.tgz` archive, a Nix-style hash, and a regular SHA256 hash, all with human-friendly names.
+- **rust.buildPackages**: Flexible multi-architecture Rust build helper. Allows you to build Rust projects for multiple Nix systems (native and cross), optionally archive/hash outputs with `archiveAndHash`, and integrate custom overlays and toolchains. See below for full usage and parameters.
+- **archiveAndHash**: Archive a build output into a `.tgz` and generate both a Nix-style hash and a standard SHA256 hash, all with user-friendly names. Useful for distributing and verifying build artifacts.
+- **utils**: Helper functions for system/platform mapping:
+  - `systemMap`: Extracts architecture and platform from a Nix system string.
+  - `getTarget`: Maps a Nix system string to a typical Rust/gnu-style target triple.
 
 ## Usage
 
@@ -15,17 +18,69 @@ Add this flake as an input to your own flake:
 inputs.nix-utils.url = "github:ck3mp3r/flakes?dir=nix-utils&ref=main";
 ```
 
-Then use the utilities in your `flake.nix`:
+Then use the utilities from `lib` in your `flake.nix`:
 
 ```nix
-rustMultiarch = nix-utils.lib.rustMultiarch { ... };
+archiveAndHash = nix-utils.lib.archiveAndHash;
+utils = nix-utils.lib.utils;
+rustBuild = nix-utils.lib.rust.buildPackages;
 ```
 
-To enable artifact archiving and hashing:
+### Example: Multi-Architecture Rust Build
 
 ```nix
-rustMultiarch = nix-utils.lib.rustMultiarch {
-  ...
-  archiveAndHash = true;
+let
+  rustBuild = nix-utils.lib.rust.buildPackages {
+    pkgs = pkgs;
+    nixpkgs = nixpkgs;
+    overlays = []; # Optionally add overlays
+    fenix = fenix;
+    system = "x86_64-linux";
+    systems = [ "x86_64-linux" "aarch64-linux" ];
+    cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+    cargoLock = { lockFile = ./Cargo.lock; };
+    src = ./.;
+    installData = {}; # Optional, see source for details
+    archiveAndHash = true; # Set to false to disable artifact archiving
+    extraArgs = {}; # Optional, extra args for build
+  };
+in
+  rustBuild.x86_64-linux # or rustBuild.default
+```
+
+### Example: Archiving and Hashing a Build Output
+
+```nix
+outputs = { self, nix-utils, nixpkgs, ... }: {
+  packages.x86_64-linux.example = let
+    pkgs = import nixpkgs { system = "x86_64-linux"; };
+    myDrv = pkgs.stdenv.mkDerivation {
+      name = "my-artifact";
+      src = ./.;
+      buildPhase = ":";
+      installPhase = ''
+        mkdir -p $out
+        echo "Hello, world!" > $out/hello.txt
+      '';
+    };
+    archive = nix-utils.lib.archiveAndHash {
+      pkgs = pkgs;
+      drv = myDrv;
+      name = "my-artifact";
+    };
+  in archive;
 };
 ```
+
+### Example: Using Platform Helpers
+
+```nix
+let
+  systemInfo = nix-utils.lib.utils.systemMap "x86_64-linux";
+  targetTriple = nix-utils.lib.utils.getTarget "x86_64-linux";
+in
+  # systemInfo = { arch = "x86_64"; platform = "linux"; }
+  # targetTriple = "x86_64-unknown-linux-musl"
+```
+
+See the source in `lib/` for more information on available helpers and detailed options for Rust multiarch builds.
