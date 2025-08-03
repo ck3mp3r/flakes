@@ -6,31 +6,28 @@ let
     extraArgs ? {},
     fenix,
     installData,
+    linuxVariant ? "musl",
     nixpkgs,
     overlays,
     pkgs,
     src,
     system,
     systems,
-    linuxVariant ? "musl",
   }: let
     utils = import ../utils.nix;
     crossPkgs = target: let
-      isCrossCompiling = target != system;
       fenixTarget = utils.getTarget {
         system = target;
         variant = linuxVariant;
       };
+      isTargetLinux = builtins.match ".*-linux" target != null;
       tmpPkgs = import nixpkgs {
         inherit overlays system;
-        crossSystem =
-          if isCrossCompiling || pkgs.stdenv.isLinux
-          then {
-            config = fenixTarget;
-            rustc = {config = fenixTarget;};
-            isStatic = pkgs.stdenv.isLinux;
-          }
-          else null;
+        crossSystem = {
+          config = fenixTarget;
+          isStatic = isTargetLinux;
+          rustc = {config = fenixTarget;};
+        };
       };
       toolchain = with fenix.packages.${system};
         combine [
