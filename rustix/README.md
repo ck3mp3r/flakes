@@ -1,4 +1,4 @@
-# nix-utils
+# rustix
 
 Reusable Nix library functions for multi-architecture Rust builds, artifact archiving/hashing, and platform/architecture helpers.
 
@@ -15,22 +15,22 @@ Reusable Nix library functions for multi-architecture Rust builds, artifact arch
 Add this flake as an input to your own flake:
 
 ```nix
-inputs.nix-utils.url = "github:ck3mp3r/flakes?dir=nix-utils&ref=main";
+inputs.rustix.url = "github:ck3mp3r/flakes?dir=rustix&ref=main";
 ```
 
 Then use the utilities from `lib` in your `flake.nix`:
 
 ```nix
-archiveAndHash = nix-utils.lib.archiveAndHash;
-utils = nix-utils.lib.utils;
-rustBuild = nix-utils.lib.rust.buildPackages;
+archiveAndHash = rustix.lib.archiveAndHash;
+utils = rustix.lib.utils;
+rustBuild = rustix.lib.rust.buildPackages;
 ```
 
 ### Example: Multi-Architecture Rust Build
 
 ```nix
 let
-  rustBuild = nix-utils.lib.rust.buildPackages {
+  rustBuild = rustix.lib.rust.buildPackages {
     pkgs = pkgs;
     nixpkgs = nixpkgs;
     overlays = []; # Optionally add overlays
@@ -51,7 +51,7 @@ in
 ### Example: Archiving and Hashing a Build Output
 
 ```nix
-outputs = { self, nix-utils, nixpkgs, ... }: {
+outputs = { self, rustix, nixpkgs, ... }: {
   packages.x86_64-linux.example = let
     pkgs = import nixpkgs { system = "x86_64-linux"; };
     myDrv = pkgs.stdenv.mkDerivation {
@@ -63,7 +63,7 @@ outputs = { self, nix-utils, nixpkgs, ... }: {
         echo "Hello, world!" > $out/hello.txt
       '';
     };
-    archive = nix-utils.lib.archiveAndHash {
+    archive = rustix.lib.archiveAndHash {
       pkgs = pkgs;
       drv = myDrv;
       name = "my-artifact";
@@ -76,8 +76,8 @@ outputs = { self, nix-utils, nixpkgs, ... }: {
 
 ```nix
 let
-  systemInfo = nix-utils.lib.utils.systemMap "x86_64-linux";
-  targetTriple = nix-utils.lib.utils.getTarget "x86_64-linux";
+  systemInfo = rustix.lib.utils.systemMap "x86_64-linux";
+  targetTriple = rustix.lib.utils.getTarget "x86_64-linux";
 in
   # systemInfo = { arch = "x86_64"; platform = "linux"; }
   # targetTriple = "x86_64-unknown-linux-musl"
