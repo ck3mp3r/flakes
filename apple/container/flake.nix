@@ -18,7 +18,7 @@
       pkgs = import nixpkgs {inherit system;};
 
       # Use official Swift 6.1.2 release - much more reliable than building from source
-      swift6 = pkgs.stdenv.mkDerivation rec {
+      swift6 = pkgs.stdenv.mkDerivation {
         pname = "swift";
         version = "6.1.2";
 
