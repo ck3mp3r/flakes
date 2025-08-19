@@ -1,38 +1,5 @@
 {
   "nodes": {
-    "container-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1755538047,
-        "narHash": "sha256-P4gce91w3x2fi8FgdvTNhKXIfa84KL36G198CNHLeq0=",
-        "owner": "apple",
-        "repo": "container",
-        "rev": "07679d99c76fc5612920c8b76ff06809471e6ddf",
-        "type": "github"
-      },
-      "original": {
-        "owner": "apple",
-        "repo": "container",
-        "type": "github"
-      }
-    },
-    "containerization-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1753210432,
-        "narHash": "sha256-fpt9KPAe/om7/gpHXuFtezQ8BrjinGZoTPJf7yl3kvE=",
-        "owner": "apple",
-        "repo": "containerization",
-        "rev": "0a4ff1b737c37563196754f62a3218873a49c6a7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "apple",
-        "ref": "0.5.0",
-        "repo": "containerization",
-        "type": "github"
-      }
-    },
     "devshell": {
       "inputs": {
         "nixpkgs": "nixpkgs"
@@ -103,8 +70,6 @@
     },
     "root": {
       "inputs": {
-        "container-src": "container-src",
-        "containerization-src": "containerization-src",
         "devshell": "devshell",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs_2"
