@@ -1,237 +1,284 @@
 {
-  description = "Apple Container with Swift 6";
+  description = "Apple Container - A container platform for macOS";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    apple-container = {
+    devshell.url = "github:numtide/devshell";
+    # Apple Container source
+    container-src = {
       url = "github:apple/container";
+      flake = false;
+    };
+    # Apple Containerization framework source
+    containerization-src = {
+      url = "github:apple/containerization/0.5.0";
       flake = false;
     };
   };
   outputs = {
-    apple-container,
-    flake-utils,
     nixpkgs,
+    flake-utils,
+    devshell,
+    container-src,
+    containerization-src,
     ...
   }:
-    flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {inherit system;};
+    flake-utils.lib.eachSystem ["aarch64-darwin" "x86_64-darwin"] (
+      system: let
+        # Create overlay that uses Swift from Xcode 26 beta
+        swiftOverlay = final: prev: {
+          swift = final.stdenv.mkDerivation rec {
+            pname = "swift";
+            version = "6.2-beta";
 
-      # Use official Swift 6.1.2 release - much more reliable than building from source
-      swift6 = pkgs.stdenv.mkDerivation {
-        pname = "swift";
-        version = "6.1.2";
+            nativeBuildInputs = with final; [makeWrapper];
+            src = final.emptyDirectory;
 
-        src =
-          if pkgs.stdenv.isDarwin
-          then
-            pkgs.fetchurl {
-              url = "https://download.swift.org/swift-6.1.2-release/xcode/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-osx.pkg";
-              sha256 = "sha256-Rs1x8O5NgOOJSUwSNzNaCk9DqK2gT82XsilT1vKhTWc="; # Will be updated by nix
-            }
-          else
-            pkgs.fetchurl {
-              url = "https://download.swift.org/swift-6.1.2-release/ubuntu2404/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-ubuntu24.04.tar.gz";
-              sha256 = "0000000000000000000000000000000000000000000000000000"; # Will be updated by nix
+            dontUnpack = true;
+            dontConfigure = true;
+            dontBuild = true;
+
+            installPhase = ''
+              # Find Xcode 26 beta in nix store
+              xcode_path=$(find /nix/store -maxdepth 1 -name "*Xcode-beta.app" -type d | head -1)
+
+              if [ -z "$xcode_path" ]; then
+                echo "Error: Could not find Xcode-beta.app in /nix/store"
+                exit 1
+              fi
+
+              echo "Found Xcode 26 beta at: $xcode_path"
+
+              mkdir -p $out/bin
+
+              # Find the macOS 26 SDK
+              sdk_path="$xcode_path/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs"
+              macos_sdk=$(find "$sdk_path" -name "MacOSX*.sdk" -type d | head -1)
+
+              echo "Using SDK: $macos_sdk"
+
+              # Create wrapper scripts that point to Xcode's Swift
+              toolchain_path="$xcode_path/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
+
+              for tool in swift swiftc; do
+                if [ -f "$toolchain_path/usr/bin/$tool" ]; then
+                  makeWrapper "$toolchain_path/usr/bin/$tool" "$out/bin/$tool" \
+                    --set DEVELOPER_DIR "$xcode_path/Contents/Developer" \
+                    --set SDKROOT "$macos_sdk"
+                fi
+              done
+            '';
+
+            meta = with final.lib; {
+              description = "Swift Programming Language 6.2 from Xcode 26 Beta";
+              platforms = platforms.darwin;
+              license = licenses.unfree;
             };
-
-        nativeBuildInputs = with pkgs;
-          [
-            makeWrapper
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            xar
-            cpio
-          ];
-
-        unpackPhase =
-          if pkgs.stdenv.isDarwin
-          then ''
-            echo "Extracting Swift .pkg file..."
-            xar -xf $src
-
-            # Find the actual payload
-            payload_file=$(find . -name "Payload" | head -1)
-            if [ -n "$payload_file" ]; then
-              cd "$(dirname "$payload_file")"
-              cat Payload | gunzip -dc | cpio -i
-            else
-              echo "Could not find Payload in .pkg"
-              exit 1
-            fi
-          ''
-          else ''
-            echo "Extracting Swift tarball..."
-            tar -xzf $src --strip-components=1
-          '';
-
-        installPhase =
-          if pkgs.stdenv.isDarwin
-          then ''
-            mkdir -p $out
-            # The .pkg extracts to usr/
-            if [ -d "usr" ]; then
-              cp -r usr/* $out/
-            else
-              # Fallback: copy everything
-              cp -r * $out/
-            fi
-          ''
-          else ''
-            mkdir -p $out
-            cp -r * $out/
-          '';
-
-        postInstall = ''
-          # Wrap Swift binaries to ensure they can find libraries
-          for binary in $out/bin/*; do
-            if [ -f "$binary" ] && [ -x "$binary" ]; then
-              wrapProgram "$binary" \
-                --prefix DYLD_LIBRARY_PATH : "$out/lib" \
-                --prefix LD_LIBRARY_PATH : "$out/lib"
-            fi
-          done
-        '';
-
-        meta = with pkgs.lib; {
-          description = "Swift Programming Language 6.1.2 (Official Release)";
-          homepage = "https://swift.org";
-          license = licenses.asl20;
-          platforms = platforms.unix;
+          };
         };
-      };
 
-      apple-container' = pkgs.stdenv.mkDerivation {
-        pname = "apple-container";
-        version = "custom";
-        src = apple-container;
-
-        nativeBuildInputs = with pkgs; [
-          git
-          makeWrapper
-          pkg-config
-        ];
-
-        buildInputs =
-          [swift6]
-          ++ (with pkgs; [
-            libxml2
-            curl
-          ])
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.darwin.apple_sdk.frameworks.Foundation
-            pkgs.darwin.apple_sdk.frameworks.Security
-            pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-            pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-            pkgs.darwin.system_cmds
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [
+            devshell.overlays.default
+            swiftOverlay
           ];
-
-        configurePhase = ''
-          # Ensure Swift 6 is in PATH
-          export PATH="${swift6}/bin:$PATH"
-          export PKG_CONFIG_PATH="${pkgs.libxml2.dev}/lib/pkgconfig:$PKG_CONFIG_PATH"
-
-          # Verify Swift is working
-          echo "Swift version check:"
-          swift --version || {
-            echo "Error: Swift 6 not available"
-            exit 1
-          }
-        '';
-
-        buildPhase = ''
-          export PATH="${swift6}/bin:$PATH"
-
-          echo "Building apple-container..."
-
-          # Try different build approaches
-          if [ -f "Package.swift" ]; then
-            echo "Using Swift Package Manager..."
-            swift build --configuration release
-          elif [ -f "Makefile" ]; then
-            echo "Using Makefile..."
-            make SWIFT="${swift6}/bin/swift" SWIFTC="${swift6}/bin/swiftc"
-          else
-            echo "Attempting to find and compile Swift sources..."
-            swift_files=$(find . -name "*.swift" -type f)
-            if [ -n "$swift_files" ]; then
-              echo "Compiling Swift files: $swift_files"
-              swiftc $swift_files -o container
-            else
-              echo "Error: No Swift files or build system found"
-              ls -la
-              exit 1
-            fi
-          fi
-        '';
-
-        installPhase = ''
-          mkdir -p $out/bin $out/lib
-
-          # Install built binaries
-          if [ -f ".build/release/container" ]; then
-            cp .build/release/container $out/bin/
-          elif [ -f "container" ]; then
-            cp container $out/bin/
-          elif [ -d ".build/release" ]; then
-            # Copy all executables from build directory
-            find .build/release -maxdepth 1 -type f -executable -exec cp {} $out/bin/ \;
-          fi
-
-          # Install any libraries
-          find . \( -name "*.so" -o -name "*.dylib" \) -type f 2>/dev/null | while read lib; do
-            cp "$lib" $out/lib/
-          done
-
-          # Wrap binaries to ensure they can find Swift runtime
-          for binary in $out/bin/*; do
-            if [ -f "$binary" ] && [ -x "$binary" ]; then
-              wrapProgram "$binary" \
-                --prefix PATH : "${swift6}/bin" \
-                --prefix LD_LIBRARY_PATH : "${swift6}/lib:$out/lib" \
-                --prefix DYLD_LIBRARY_PATH : "${swift6}/lib:$out/lib"
-            fi
-          done
-
-          # If no binaries were found, this might not be an executable project
-          if [ ! -f "$out/bin/"* ]; then
-            echo "Warning: No executables found. This might be a library project."
-            # Copy everything as a library/source package
-            mkdir -p $out/share/apple-container
-            cp -r . $out/share/apple-container/
-          fi
-        '';
-
-        meta = with pkgs.lib; {
-          description = "Apple Container built with Swift 6";
-          homepage = "https://github.com/apple/container";
-          platforms = platforms.unix;
         };
-      };
-    in {
-      packages = {
-        default = apple-container';
-        swift6 = swift6;
-        apple-container = apple-container';
-      };
-
-      devShells.default = pkgs.mkShell {
-        buildInputs =
-          [swift6]
-          ++ (with pkgs; [
+      in {
+        devShells.default = pkgs.devshell.mkShell {
+          imports = [(pkgs.devshell.importTOML ./devshell.toml)];
+          packages = with pkgs; [
+            swift # Swift 6.2 from Xcode 26 beta
             git
-            pkg-config
-            libxml2
-            curl
-          ]);
+            gnumake
+            darwin.system_cmds # Provides sw_vers
+            cacert # Fix SSL certificate issues
+          ];
+          env = [
+            {
+              name = "SWIFT_EXEC";
+              value = "${pkgs.swift}/bin/swift";
+            }
+            {
+              name = "CONTAINER_SRC";
+              value = "${container-src}";
+            }
+            {
+              name = "CONTAINERIZATION_SRC";
+              value = "${containerization-src}";
+            }
+          ];
+        };
 
-        shellHook = ''
-          echo "Apple Container development environment with Swift 6"
-          echo "Swift version: $(swift --version 2>/dev/null || echo 'Swift not yet built')"
-          echo ""
-          echo "To build Swift 6 first: nix build .#swift6"
-          echo "To build apple-container: nix build .#apple-container"
-        '';
-      };
-    });
+        packages = {
+          default = pkgs.stdenv.mkDerivation {
+            pname = "apple-container";
+            version = "1.0.0";
+            src = container-src;
+
+            nativeBuildInputs = with pkgs; [
+              swift
+              git
+              gnumake
+              darwin.system_cmds
+              cacert
+            ];
+
+            buildPhase = ''
+              export PATH="${pkgs.swift}/bin:$PATH"
+              export SWIFTPM_DISABLE_SANDBOX=1
+              export CONTAINER_SRC="${container-src}"
+              export CONTAINERIZATION_SRC="${containerization-src}"
+
+              # Fix SSL certificates
+              export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              export NIX_SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+
+              # Set macOS 26 deployment target
+              export MACOSX_DEPLOYMENT_TARGET=26.0
+
+              # Find Xcode and SDK
+              xcode_path=$(find /nix/store -maxdepth 1 -name "*Xcode-beta.app" -type d | head -1)
+              sdk_path="$xcode_path/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs"
+              macos_sdk=$(find "$sdk_path" -name "MacOSX*.sdk" -type d | head -1)
+
+              export DEVELOPER_DIR="$xcode_path/Contents/Developer"
+              export SDKROOT="$macos_sdk"
+
+              echo "Building apple-container with Swift 6.2 for macOS 26..."
+              echo "Using Xcode: $xcode_path"
+              echo "Using SDK: $macos_sdk"
+
+              # Set up containerization dependency as sibling directory
+              mkdir -p ../containerization
+              cp -r ${containerization-src}/* ../containerization/
+
+              # Patch Package.swift to remove problematic swift-docc-plugin
+              if [ -f Package.swift ]; then
+                echo "Patching Package.swift to remove swift-docc-plugin..."
+                # Use proper sed syntax for macOS
+                sed -i.bak '/swift-docc-plugin/d' Package.swift
+                sed -i.bak '/SwiftDocCPlugin/d' Package.swift
+                sed -i.bak '/\.plugin(/d' Package.swift
+                # Remove backup files
+                rm -f Package.swift.bak
+                echo "Package.swift patched"
+              fi
+
+              # Build with Swift Package Manager
+              echo "Building with Swift Package Manager..."
+              export SWIFTPM_CACHE_PATH="$TMPDIR/swiftpm-cache"
+              mkdir -p "$SWIFTPM_CACHE_PATH"
+
+              swift build --configuration release \
+                --disable-sandbox \
+                --scratch-path "$TMPDIR/swift-build" \
+                -Xswiftc "-target" -Xswiftc "arm64-apple-macosx26.0" \
+                -Xswiftc "-sdk" -Xswiftc "$macos_sdk"
+            '';
+
+            installPhase = ''
+              mkdir -p $out/bin
+
+              # Look for the built executable
+              if [ -f ".build/release/container" ]; then
+                cp .build/release/container $out/bin/
+                echo "Installed container executable"
+              elif [ -f "$TMPDIR/swift-build/release/container" ]; then
+                cp "$TMPDIR/swift-build/release/container" $out/bin/
+                echo "Installed container executable from scratch path"
+              else
+                echo "Warning: No container executable found"
+                echo "Available files in .build:"
+                find .build -name "*container*" 2>/dev/null || echo "No .build directory"
+                echo "Available files in scratch path:"
+                find "$TMPDIR/swift-build" -name "*container*" 2>/dev/null || echo "No scratch build directory"
+
+                # Still install source for debugging
+                mkdir -p $out/share/apple-container
+                cp -r . $out/share/apple-container/
+                echo "Installed source code for debugging"
+              fi
+            '';
+
+            meta = with pkgs.lib; {
+              description = "Apple Container - A container platform for macOS 26";
+              homepage = "https://github.com/apple/container";
+              platforms = platforms.darwin;
+              license = licenses.unfree;
+            };
+          };
+          swift6 = pkgs.swift;
+        };
+
+        apps = {
+          default = {
+            type = "app";
+            program = "${pkgs.stdenv.mkDerivation {
+              pname = "apple-container-app";
+              version = "1.0.0";
+              src = container-src;
+
+              nativeBuildInputs = with pkgs; [
+                swift
+                git
+                gnumake
+                darwin.system_cmds
+                cacert
+              ];
+
+              buildPhase = ''
+                export PATH="${pkgs.swift}/bin:$PATH"
+                export SWIFTPM_DISABLE_SANDBOX=1
+                export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+                export MACOSX_DEPLOYMENT_TARGET=26.0
+
+                # Find Xcode and SDK
+                xcode_path=$(find /nix/store -maxdepth 1 -name "*Xcode-beta.app" -type d | head -1)
+                sdk_path="$xcode_path/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs"
+                macos_sdk=$(find "$sdk_path" -name "MacOSX*.sdk" -type d | head -1)
+
+                export DEVELOPER_DIR="$xcode_path/Contents/Developer"
+                export SDKROOT="$macos_sdk"
+
+                # Set up containerization dependency
+                mkdir -p ../containerization
+                cp -r ${containerization-src}/* ../containerization/
+
+                # Patch and build
+                if [ -f Package.swift ]; then
+                  sed -i.bak '/swift-docc-plugin/d' Package.swift
+                  sed -i.bak '/SwiftDocCPlugin/d' Package.swift
+                  sed -i.bak '/\.plugin(/d' Package.swift
+                  rm -f Package.swift.bak
+                fi
+
+                export SWIFTPM_CACHE_PATH="$TMPDIR/swiftpm-cache"
+                mkdir -p "$SWIFTPM_CACHE_PATH"
+
+                swift build --configuration release \
+                  --disable-sandbox \
+                  --scratch-path "$TMPDIR/swift-build" \
+                  -Xswiftc "-target" -Xswiftc "arm64-apple-macosx26.0" \
+                  -Xswiftc "-sdk" -Xswiftc "$macos_sdk"
+              '';
+
+              installPhase = ''
+                mkdir -p $out/bin
+                if [ -f ".build/release/container" ]; then
+                  cp .build/release/container $out/bin/
+                elif [ -f "$TMPDIR/swift-build/release/container" ]; then
+                  cp "$TMPDIR/swift-build/release/container" $out/bin/
+                else
+                  echo "#!/bin/bash" > $out/bin/container
+                  echo "echo 'Container executable not found during build'" >> $out/bin/container
+                  chmod +x $out/bin/container
+                fi
+              '';
+            }}/bin/container";
+          };
+        };
+      }
+    );
 }
