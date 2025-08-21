@@ -58,7 +58,7 @@
       in {
         devShells.default = pkgs.devshell.mkShell {
           imports = [(pkgs.devshell.importTOML ./devshell.toml)];
-          packages = with pkgs; [
+          packages = [
             apple-container
           ];
         };

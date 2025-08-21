@@ -202,7 +202,7 @@ command = "cd $CONTAINER_SRC && exec $SHELL"
 
 [[commands]]
 name = "goto-containerization"
-help = "Change to containerization source directory"  
+help = "Change to containerization source directory"
 command = "cd $CONTAINERIZATION_SRC && exec $SHELL"
 
 [[commands]]
@@ -242,5 +242,5 @@ name = "SWIFTPM_DISABLE_SANDBOX"
 value = "1"
 
 [[env]]
-name = "MACOSX_DEPLOYMENT_TARGET" 
+name = "MACOSX_DEPLOYMENT_TARGET"
 value = "26.0"
