@@ -1,0 +1,36 @@
+name = "slidev"
+motd = """
+{202}🎭 Slidev Development Environment{reset}
+{14}Presentation slides for developers{reset}
+
+$(type -p menu &>/dev/null && menu)
+"""
+
+packages = [
+  "nodejs_20",
+  "nodePackages.pnpm"
+]
+
+[[commands]]
+name = "slidev-help"
+help = "Show Slidev help"
+command = "slidev --help"
+category = "presentation"
+
+[[commands]]
+name = "dev"
+help = "Start development server with browser"
+command = "slidev --open"
+category = "presentation"
+
+[[commands]]
+name = "build"
+help = "Build static presentation"
+command = "slidev build"
+category = "presentation"
+
+[[commands]]
+name = "export"
+help = "Export to PDF/PPTX/PNG"
+command = "slidev export"
+category = "presentation"
