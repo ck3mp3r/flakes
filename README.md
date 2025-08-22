@@ -12,6 +12,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 | [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
 | [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin |
 | [🧰 rustix](./rustix/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./rustix/README.md) |
+| [📊 slidev](./slidev/) | Presentation slides for developers | `nix run github:ck3mp3r/flakes?dir=slidev` |
 
 ## Quick Start
 
@@ -34,7 +35,7 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 }
 ```
 
-Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, or `rustix`.
+Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, `rustix`, or `slidev`.
 
 ## Contributing
 
