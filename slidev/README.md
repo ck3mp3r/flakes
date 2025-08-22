@@ -1,5 +1,7 @@
 # Slidev Nix Flake
 
+> ⚠️ **EXPERIMENTAL**: This flake is highly experimental and not thoroughly tested. Use at your own risk.
+
 This Nix flake packages [Slidev](https://sli.dev), a presentation slides tool for developers.
 
 ## Usage
