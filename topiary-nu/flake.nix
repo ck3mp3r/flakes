@@ -1,7 +1,7 @@
 {
   description = "This flake wraps the topiary formatting functionality.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     tree-sitter-nu = {
       url = "github:nushell/tree-sitter-nu";
@@ -66,6 +66,7 @@
           '';
         };
       in {
+        formatter = pkgs.alejandra;
         packages.default = topiaryNu;
       }
     )

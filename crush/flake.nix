@@ -1,7 +1,7 @@
 {
   description = "This flake wraps the charmbracelet/crush tui app.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     crush-src = {
       url = "github:charmbracelet/crush";
@@ -46,6 +46,7 @@
           };
         };
       in {
+        formatter = pkgs.alejandra;
         packages.default = crush;
       }
     )

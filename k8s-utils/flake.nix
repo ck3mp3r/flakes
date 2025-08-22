@@ -1,7 +1,7 @@
 {
   description = "This brings in clis and utilities related to kubernetes.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
   outputs = {
@@ -35,6 +35,7 @@
           pathsToLink = ["/bin" "/share"];
         };
       in {
+        formatter = pkgs.alejandra;
         packages.default = k8s-bundle;
       }
     )
