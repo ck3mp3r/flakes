@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    devshell = {
+      url = "github:numtide/devshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     slidev-src = {
       url = "github:slidevjs/slidev";
       flake = false;
@@ -13,11 +17,13 @@
   outputs = {
     nixpkgs,
     flake-utils,
+    devshell,
     slidev-src,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
+      devshellPkgs = devshell.legacyPackages.${system};
 
       # Read package info from the CLI package
       packageJson = builtins.fromJSON (builtins.readFile "${slidev-src}/packages/slidev/package.json");
@@ -78,17 +84,9 @@
         };
       };
 
-      devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
-          nodejs_20
-          nodePackages.pnpm
-          slidev
-        ];
-
-        shellHook = ''
-          echo "Slidev development environment"
-          echo "Run 'slidev --help' to get started"
-        '';
+      devShells.default = devshellPkgs.mkShell {
+        imports = [(devshellPkgs.importTOML ./devshell.toml)];
+        packages = [slidev];
       };
 
       formatter = pkgs.alejandra;
