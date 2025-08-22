@@ -1,7 +1,7 @@
 {
   description = "This flake wraps the charmbracelet/mods cli.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     mods-src = {
       url = "github:charmbracelet/mods";
@@ -46,6 +46,7 @@
           };
         };
       in {
+        formatter = pkgs.alejandra;
         packages.default = mods;
       }
     )

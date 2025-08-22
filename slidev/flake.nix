@@ -2,7 +2,7 @@
   description = "Slidev - Presentation slides for developers";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     slidev-src = {
       url = "github:slidevjs/slidev";
