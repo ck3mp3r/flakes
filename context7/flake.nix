@@ -37,13 +37,13 @@
           configurePhase = ''
             runHook preConfigure
             export HOME=$TMPDIR
-            bun install --frozen-lockfile
+            ${pkgs.bun}/bin/bun install --frozen-lockfile
             runHook postConfigure
           '';
 
           buildPhase = ''
             runHook preBuild
-            bun run build
+            ${pkgs.bun}/bin/bun run build
             runHook postBuild
           '';
 
