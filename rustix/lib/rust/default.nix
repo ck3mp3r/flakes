@@ -11,10 +11,12 @@ let
     nativeBuildInputs ? [],
     nixpkgs,
     overlays,
+    packageName ? null,
     pkgs,
     src,
     system,
     systems,
+    aliases ? [],
   }: let
     utils = import ../utils.nix;
     crossPkgs = target: let
@@ -66,10 +68,12 @@ let
         name = target;
         value = let
           cross = crossPkgs target;
-          mergedExtraArgs = extraArgs // {
-            buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-            nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-          };
+          mergedExtraArgs =
+            extraArgs
+            // {
+              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+            };
           plain = cross.callPackage ./build.nix {
             inherit cargoToml cargoLock src;
             extraArgs = mergedExtraArgs;
@@ -92,8 +96,23 @@ let
       inherit cargoToml;
       data = installData.${system};
     };
+  in let
+    basePackages = systemPackages // {default = defaultPackage;};
+
+    # Add main package with custom name if provided
+    namedPackage =
+      if packageName != null
+      then {${packageName} = systemPackages.${system};} # Points to current system build
+      else {};
+
+    # Add aliases (all point to current system build)
+    aliasPackages = builtins.listToAttrs (map (alias: {
+        name = alias;
+        value = systemPackages.${system};
+      })
+      aliases);
   in
-    systemPackages // {default = defaultPackage;};
+    basePackages // namedPackage // aliasPackages;
 in {
   inherit buildPackages;
 }
