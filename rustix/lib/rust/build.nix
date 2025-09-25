@@ -21,6 +21,7 @@
           cargoLock
           ;
         buildInputs = extraArgs.buildInputs or [];
+        nativeBuildInputs = extraArgs.nativeBuildInputs or [];
       }
       // extraArgs);
 in

@@ -1,12 +1,14 @@
 let
   buildPackages = {
     archiveAndHash ? false,
+    buildInputs ? [],
     cargoLock,
     cargoToml,
     extraArgs ? {},
     fenix,
     installData,
     linuxVariant ? "musl",
+    nativeBuildInputs ? [],
     nixpkgs,
     overlays,
     pkgs,
@@ -64,8 +66,13 @@ let
         name = target;
         value = let
           cross = crossPkgs target;
+          mergedExtraArgs = extraArgs // {
+            buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+            nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+          };
           plain = cross.callPackage ./build.nix {
-            inherit cargoToml cargoLock src extraArgs;
+            inherit cargoToml cargoLock src;
+            extraArgs = mergedExtraArgs;
             toolchain = cross.toolchain;
           };
           archiveAndHashLib = import ../archiveAndHash.nix;
