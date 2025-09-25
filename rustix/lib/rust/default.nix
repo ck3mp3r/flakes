@@ -80,15 +80,35 @@ let
             toolchain = cross.toolchain;
           };
           archiveAndHashLib = import ../archiveAndHash.nix;
+          archived = archiveAndHashLib {
+            inherit pkgs;
+            drv = plain;
+            name = cargoToml.package.name;
+          };
         in
           if archiveAndHash
-          then
-            archiveAndHashLib {
-              inherit pkgs;
-              drv = plain;
-              name = cargoToml.package.name;
-            }
+          then archived
           else plain;
+      })
+      systems);
+
+    # Create separate plain builds for installable packages
+    plainSystemPackages = builtins.listToAttrs (map (target: {
+        name = target;
+        value = let
+          cross = crossPkgs target;
+          mergedExtraArgs =
+            extraArgs
+            // {
+              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+            };
+        in
+          cross.callPackage ./build.nix {
+            inherit cargoToml cargoLock src;
+            extraArgs = mergedExtraArgs;
+            toolchain = cross.toolchain;
+          };
       })
       systems);
 
@@ -99,16 +119,16 @@ let
   in let
     basePackages = systemPackages // {default = defaultPackage;};
 
-    # Add main package with custom name if provided
+    # Add main package with custom name if provided (always installable)
     namedPackage =
       if packageName != null
-      then {${packageName} = systemPackages.${system};} # Points to current system build
+      then {${packageName} = plainSystemPackages.${system};} # Points to plain current system build
       else {};
 
-    # Add aliases (all point to current system build)
+    # Add aliases (all point to plain current system build for installability)
     aliasPackages = builtins.listToAttrs (map (alias: {
         name = alias;
-        value = systemPackages.${system};
+        value = plainSystemPackages.${system};
       })
       aliases);
   in
