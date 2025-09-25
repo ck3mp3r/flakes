@@ -11,10 +11,12 @@ let
     nativeBuildInputs ? [],
     nixpkgs,
     overlays,
+    packageName ? null,
     pkgs,
     src,
     system,
     systems,
+    aliases ? [],
   }: let
     utils = import ../utils.nix;
     crossPkgs = target: let
@@ -66,25 +68,47 @@ let
         name = target;
         value = let
           cross = crossPkgs target;
-          mergedExtraArgs = extraArgs // {
-            buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-            nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-          };
+          mergedExtraArgs =
+            extraArgs
+            // {
+              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+            };
           plain = cross.callPackage ./build.nix {
             inherit cargoToml cargoLock src;
             extraArgs = mergedExtraArgs;
             toolchain = cross.toolchain;
           };
           archiveAndHashLib = import ../archiveAndHash.nix;
+          archived = archiveAndHashLib {
+            inherit pkgs;
+            drv = plain;
+            name = cargoToml.package.name;
+          };
         in
           if archiveAndHash
-          then
-            archiveAndHashLib {
-              inherit pkgs;
-              drv = plain;
-              name = cargoToml.package.name;
-            }
+          then archived
           else plain;
+      })
+      systems);
+
+    # Create separate plain builds for installable packages
+    plainSystemPackages = builtins.listToAttrs (map (target: {
+        name = target;
+        value = let
+          cross = crossPkgs target;
+          mergedExtraArgs =
+            extraArgs
+            // {
+              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+            };
+        in
+          cross.callPackage ./build.nix {
+            inherit cargoToml cargoLock src;
+            extraArgs = mergedExtraArgs;
+            toolchain = cross.toolchain;
+          };
       })
       systems);
 
@@ -92,8 +116,23 @@ let
       inherit cargoToml;
       data = installData.${system};
     };
+  in let
+    basePackages = systemPackages // {default = defaultPackage;};
+
+    # Add main package with custom name if provided (always installable)
+    namedPackage =
+      if packageName != null
+      then {${packageName} = plainSystemPackages.${system};} # Points to plain current system build
+      else {};
+
+    # Add aliases (all point to plain current system build for installability)
+    aliasPackages = builtins.listToAttrs (map (alias: {
+        name = alias;
+        value = plainSystemPackages.${system};
+      })
+      aliases);
   in
-    systemPackages // {default = defaultPackage;};
+    basePackages // namedPackage // aliasPackages;
 in {
   inherit buildPackages;
 }
