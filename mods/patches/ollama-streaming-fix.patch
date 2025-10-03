@@ -1,0 +1,28 @@
+--- a/internal/ollama/ollama.go
++++ b/internal/ollama/ollama.go
+@@ -119,6 +119,12 @@
+ 		s.messages = append(s.messages, msg)
+ 		statuses = append(statuses, status)
+ 	}
++	// After executing tools, restart stream so AI can respond to tool results
++	if len(s.message.ToolCalls) > 0 {
++		s.done = false
++		s.factory()
++		s.message = api.Message{}
++	}
+ 	return statuses
+ }
+ 
+@@ -159,11 +165,9 @@
+ 		return false
+ 	}
+ 	if s.done {
+-		s.done = false
+-		s.factory()
+ 		s.messages = append(s.messages, toProtoMessage(s.message))
+ 		s.request.Messages = append(s.request.Messages, s.message)
+-		s.message = api.Message{}
++		return false
+ 	}
+ 	return true
+ }

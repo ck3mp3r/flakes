@@ -29,7 +29,7 @@
           vendorHash = null;
           proxyVendor = true;
 
-          patches = [./patches/fix-ollama-stream.patch];
+          patches = [./patches/ollama-streaming-fix.patch];
 
           preBuild = ''
             export GOPROXY=https://proxy.golang.org
