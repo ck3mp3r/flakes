@@ -29,6 +29,8 @@
           vendorHash = null;
           proxyVendor = true;
 
+          patches = [./patches/fix-ollama-stream.patch];
+
           preBuild = ''
             export GOPROXY=https://proxy.golang.org
           '';
