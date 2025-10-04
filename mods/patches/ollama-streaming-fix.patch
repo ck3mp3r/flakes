@@ -1,6 +1,6 @@
 --- a/internal/ollama/ollama.go	2025-10-03 20:10:47
-+++ b/internal/ollama/ollama.go	2025-10-04 17:19:29
-@@ -2,10 +2,16 @@
++++ b/internal/ollama/ollama.go	2025-10-04 17:59:01
+@@ -2,10 +2,15 @@
  package ollama
  
  import (
@@ -8,7 +8,6 @@
 +	"bytes"
  	"context"
 +	"encoding/json"
-+	"fmt"
 +	"io"
  	"net/http"
  	"net/url"
@@ -17,7 +16,7 @@
  
  	"github.com/charmbracelet/mods/internal/proto"
  	"github.com/charmbracelet/mods/internal/stream"
-@@ -31,27 +37,101 @@
+@@ -31,27 +36,99 @@
  
  // Client ollama client.
  type Client struct {
@@ -94,11 +93,9 @@
 +	return nil
 +}
 +
-+// NewChatStream creates a new streaming chat request - like OpenAI's NewStreaming
++// NewChatStream creates a new streaming chat request.
 +func (c *Client) NewChatStream(ctx context.Context, req api.ChatRequest) *HTTPChatStream {
 +	jsonBody, _ := json.Marshal(req)
-+	// DEBUG: Log the number of messages being sent
-+	fmt.Printf("DEBUG: Sending %d messages to Ollama\n", len(req.Messages))
 +	chatURL := strings.TrimSuffix(c.baseURL, "/") + "/api/chat"
 +	httpReq, err := http.NewRequestWithContext(ctx, "POST", chatURL, bytes.NewBuffer(jsonBody))
 +	if err != nil {
@@ -126,7 +123,7 @@
  	body := api.ChatRequest{
  		Model:    request.Model,
  		Messages: fromProtoMessages(request.Messages),
-@@ -72,39 +152,42 @@
+@@ -72,39 +149,41 @@
  	if request.TopP != nil {
  		body.Options["top_p"] = *request.TopP
  	}
@@ -152,7 +149,6 @@
  	}
 -	s.factory()
 +	s.factory = func() *HTTPChatStream {
-+		// Create fresh request with current conversation state
 +		freshReq := api.ChatRequest{
 +			Model:    body.Model,
 +			Messages: fromProtoMessages(s.messages),
@@ -165,8 +161,7 @@
  	return s
  }
  
--// Stream ollama stream.
-+// Stream ollama stream - EXACTLY like OpenAI structure  
+ // Stream ollama stream.
  type Stream struct {
 -	request  api.ChatRequest
 -	err      error
@@ -192,28 +187,18 @@
  // CallTools implements stream.Stream.
  func (s *Stream) CallTools() []proto.ToolCallStatus {
  	statuses := make([]proto.ToolCallStatus, 0, len(s.message.ToolCalls))
-@@ -115,55 +198,46 @@
- 			[]byte(call.Function.Arguments.String()),
- 			s.toolCall,
- 		)
--		s.request.Messages = append(s.request.Messages, fromProtoMessage(msg))
- 		s.messages = append(s.messages, msg)
- 		statuses = append(statuses, status)
- 	}
- 	return statuses
+@@ -123,47 +202,38 @@
  }
  
--// Close implements stream.Stream.
+ // Close implements stream.Stream.
 -func (s *Stream) Close() error {
 -	close(s.respCh)
 -	s.done = true
 -	return nil
 -}
-+// Close implements stream.Stream - EXACTLY like OpenAI
 +func (s *Stream) Close() error { return s.stream.Close() }
  
--// Current implements stream.Stream.
-+// Current implements stream.Stream - EXACTLY like OpenAI pattern
+ // Current implements stream.Stream.
  func (s *Stream) Current() (proto.Chunk, error) {
 -	select {
 -	case resp := <-s.respCh:
@@ -232,22 +217,19 @@
 +	event := s.stream.Current()
 +	s.message.Content += event.Message.Content
 +	s.message.ToolCalls = append(s.message.ToolCalls, event.Message.ToolCalls...)
-+	// Don't set s.done here - let the HTTP stream naturally finish
 +	return proto.Chunk{
 +		Content: event.Message.Content,
 +	}, nil
  }
  
--// Err implements stream.Stream.
+ // Err implements stream.Stream.
 -func (s *Stream) Err() error { return s.err }
-+// Err implements stream.Stream - EXACTLY like OpenAI
 +func (s *Stream) Err() error { return s.stream.Err() }
  
  // Messages implements stream.Stream.
  func (s *Stream) Messages() []proto.Message { return s.messages }
  
--// Next implements stream.Stream.
-+// Next implements stream.Stream - EXACTLY like OpenAI
+ // Next implements stream.Stream.
  func (s *Stream) Next() bool {
 -	if s.err != nil {
 -		return false
