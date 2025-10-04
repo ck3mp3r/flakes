@@ -19,7 +19,7 @@ def "main list-tools" [] {
           resource_type: {
             type: "string"
             description: "Resource type to scale (deployment, replicaset, statefulset)"
-            enum: ["deployment", "replicaset", "statefulset", "replicationcontroller"]
+            enum: ["deployment" "replicaset" "statefulset" "replicationcontroller"]
           }
           name: {
             type: "string"
@@ -44,7 +44,7 @@ def "main list-tools" [] {
             default: "5m"
           }
         }
-        required: ["resource_type", "name", "replicas"]
+        required: ["resource_type" "name" "replicas"]
       }
     }
     {
@@ -58,12 +58,12 @@ def "main list-tools" [] {
             items: {
               type: "object"
               properties: {
-                resource_type: { type: "string" }
-                name: { type: "string" }
-                replicas: { type: "integer" }
-                namespace: { type: "string" }
+                resource_type: {type: "string"}
+                name: {type: "string"}
+                replicas: {type: "integer"}
+                namespace: {type: "string"}
               }
-              required: ["resource_type", "name", "replicas"]
+              required: ["resource_type" "name" "replicas"]
             }
             description: "List of resources to scale"
           }
@@ -95,7 +95,7 @@ def "main list-tools" [] {
             description: "Namespace (optional)"
           }
         }
-        required: ["resource_type", "name"]
+        required: ["resource_type" "name"]
       }
     }
     {
@@ -128,7 +128,7 @@ def "main list-tools" [] {
             description: "Namespace (optional)"
           }
         }
-        required: ["deployment_name", "min_replicas", "max_replicas"]
+        required: ["deployment_name" "min_replicas" "max_replicas"]
       }
     }
     {
@@ -159,7 +159,7 @@ def "main list-tools" [] {
             default: "2m"
           }
         }
-        required: ["resource_type", "name", "replicas"]
+        required: ["resource_type" "name" "replicas"]
       }
     }
   ] | to json
@@ -174,44 +174,44 @@ def "main call-tool" [
 
   match $tool_name {
     "scale_resource" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let replicas = $parsed_args | get replicas
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let current_replicas = if "current_replicas" in $parsed_args { $parsed_args | get current_replicas } else { null }
-      let timeout = if "timeout" in $parsed_args { $parsed_args | get timeout } else { "5m" }
-      
-      scale_resource $resource_type $name $replicas $namespace $current_replicas $timeout
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let replicas = $parsed_args.replicas
+      let namespace = $parsed_args.namespace?
+      let current_replicas = $parsed_args.current_replicas?
+      let timeout = $parsed_args.timeout? | default "5m"
+
+      scale_resource $resource_type $name $replicas $namespace $timeout
     }
     "scale_multiple" => {
-      let resources = $parsed_args | get resources
-      let timeout = if "timeout" in $parsed_args { $parsed_args | get timeout } else { "5m" }
-      
+      let resources = $parsed_args.resources
+      let timeout = $parsed_args.timeout? | default "5m"
+
       scale_multiple $resources $timeout
     }
     "get_scale_status" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let namespace = $parsed_args.namespace?
+
       get_scale_status $resource_type $name $namespace
     }
     "autoscale_deployment" => {
-      let deployment_name = $parsed_args | get deployment_name
-      let min_replicas = $parsed_args | get min_replicas
-      let max_replicas = $parsed_args | get max_replicas
-      let cpu_percent = if "cpu_percent" in $parsed_args { $parsed_args | get cpu_percent } else { 80 }
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      
+      let deployment_name = $parsed_args.deployment_name
+      let min_replicas = $parsed_args.min_replicas
+      let max_replicas = $parsed_args.max_replicas
+      let cpu_percent = $parsed_args.cpu_percent? | default 80
+      let namespace = $parsed_args.namespace?
+
       autoscale_deployment $deployment_name $min_replicas $max_replicas $cpu_percent $namespace
     }
     "scale_with_monitoring" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let replicas = $parsed_args | get replicas
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let monitor_duration = if "monitor_duration" in $parsed_args { $parsed_args | get monitor_duration } else { "2m" }
-      
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let replicas = $parsed_args.replicas
+      let namespace = $parsed_args.namespace?
+      let monitor_duration = $parsed_args.monitor_duration? | default "2m"
+
       scale_with_monitoring $resource_type $name $replicas $namespace $monitor_duration
     }
     _ => {
@@ -226,44 +226,50 @@ def scale_resource [
   name: string
   replicas: int
   namespace?: string
-  current_replicas?: int
   timeout: string = "5m"
 ] {
   try {
-    mut cmd = ["kubectl", "scale", $resource_type, $name, $"--replicas=($replicas)"]
-    
+    mut cmd_args = ["scale" $resource_type $name $"--replicas=($replicas)"]
+
     # Add namespace if specified
     if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-    
-    # Add current replicas precondition if specified
-    if $current_replicas != null {
-      $cmd = ($cmd | append $"--current-replicas=($current_replicas)")
-    }
-    
+
     # Add timeout
-    $cmd = ($cmd | append $"--timeout=($timeout)")
-    
-    let result = run-external $cmd.0 ...$cmd.1..
-    
+    $cmd_args = ($cmd_args | append $"--timeout=($timeout)")
+
+    let result = run-external "kubectl" ...$cmd_args
+
     # Get current status after scaling
-    let status = get_scale_status $resource_type $name $namespace
-    
-    $"Scaling Operation Completed:
-($result)
+    let status = get_scale_status $resource_type $name $namespace | from json
 
-Current Status:
-($status)
-
-Command executed: ($cmd | str join ' ')"
-  } catch { |e|
-    $"Error scaling ($resource_type)/($name): ($e.msg)
-Please check:
-- Resource exists and is scalable
-- Current replica count matches precondition (if specified)
-- You have permission to scale the resource
-- Timeout is sufficient for the scaling operation"
+    {
+      type: "scale_result"
+      operation: "scale"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: $namespace
+      }
+      target_replicas: $replicas
+      precondition: null
+      timeout: $timeout
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      scale_output: $result
+      current_status: $status
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error scaling ($resource_type)/($name): ($error.msg)"
+      suggestions: [
+        "Verify resource exists and is scalable"
+        "Check current replica count matches precondition"
+        "Ensure you have permission to scale the resource"
+        "Confirm timeout is sufficient for the scaling operation"
+      ]
+    } | to json
   }
 }
 
@@ -272,27 +278,53 @@ def scale_multiple [
   resources: list<record>
   timeout: string = "5m"
 ] {
-  mut results = ["Scaling Multiple Resources:"]
-  
-  for resource in $resources {
+  let scale_results = $resources | each {|resource|
     try {
-      let resource_type = $resource | get resource_type
-      let name = $resource | get name
-      let replicas = $resource | get replicas
-      let namespace = if "namespace" in $resource { $resource | get namespace } else { null }
-      
-      $results = ($results | append $"")
-      $results = ($results | append $"📊 Scaling ($resource_type)/($name) to ($replicas) replicas...")
-      
-      let scale_result = scale_resource $resource_type $name $replicas $namespace null $timeout
-      $results = ($results | append $scale_result)
-      $results = ($results | append $"✅ ($resource_type)/($name) scaling initiated")
-    } catch { |e|
-      $results = ($results | append $"❌ Failed to scale ($resource.resource_type)/($resource.name): ($e.msg)")
+      let resource_type = $resource.resource_type
+      let name = $resource.name
+      let replicas = $resource.replicas
+      let namespace = $resource.namespace?
+
+      let scale_result = try {
+        scale_resource $resource_type $name $replicas $namespace $timeout | from json
+      } catch {
+        {type: "error" message: "Failed to scale resource"}
+      }
+
+      {
+        resource: {
+          type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+        status: "success"
+        result: $scale_result
+      }
+    } catch {|error|
+      {
+        resource: {
+          type: $resource.resource_type
+          name: $resource.name
+          namespace: $resource.namespace?
+        }
+        status: "error"
+        error_message: $error.msg
+      }
     }
   }
-  
-  $results | str join (char newline)
+
+  let successful_scales = $scale_results | where status == "success" | length
+  let failed_scales = $scale_results | where status == "error" | length
+
+  {
+    type: "multiple_scale_result"
+    total_resources: ($resources | length)
+    successful: $successful_scales
+    failed: $failed_scales
+    timeout: $timeout
+    results: $scale_results
+    summary: $"Scaled ($successful_scales) resources successfully, ($failed_scales) failed"
+  } | to json
 }
 
 # Get current scaling status and replica information
@@ -302,89 +334,99 @@ def get_scale_status [
   namespace?: string
 ] {
   try {
-    mut get_cmd = ["kubectl", "get", $resource_type, $name, "--output", "json"]
-    
+    mut get_cmd_args = ["get" $resource_type $name "--output" "json"]
+
     if $namespace != null {
-      $get_cmd = ($get_cmd | append "--namespace" | append $namespace)
+      $get_cmd_args = ($get_cmd_args | append "--namespace" | append $namespace)
     }
-    
-    let resource_info = run-external $get_cmd.0 ...$get_cmd.1.. | from json
-    
-    let spec = $resource_info.spec
-    let status = $resource_info.status
-    
-    mut status_lines = [$"Scale Status for ($resource_type)/($name):"]
-    
+
+    let resource_info = run-external "kubectl" ...$get_cmd_args | from json
+
+    let spec = ($resource_info | get spec -o)
+    let status = ($resource_info | get status -o)
+
     # Get replica information based on resource type
-    match $resource_type {
+    let replica_status = match $resource_type {
       "deployment" => {
-        let desired = if "replicas" in $spec { $spec.replicas } else { 1 }
-        let current = if "replicas" in $status { $status.replicas } else { 0 }
-        let ready = if "readyReplicas" in $status { $status.readyReplicas } else { 0 }
-        let available = if "availableReplicas" in $status { $status.availableReplicas } else { 0 }
-        let updated = if "updatedReplicas" in $status { $status.updatedReplicas } else { 0 }
-        
-        $status_lines = ($status_lines | append $"  Desired Replicas: ($desired)")
-        $status_lines = ($status_lines | append $"  Current Replicas: ($current)")
-        $status_lines = ($status_lines | append $"  Ready Replicas: ($ready)")
-        $status_lines = ($status_lines | append $"  Available Replicas: ($available)")
-        $status_lines = ($status_lines | append $"  Updated Replicas: ($updated)")
-        
-        # Check if scaling is complete
-        if $current == $desired and $ready == $desired {
-          $status_lines = ($status_lines | append $"  Status: ✅ Scaling Complete")
-        } else {
-          $status_lines = ($status_lines | append $"  Status: 🔄 Scaling in Progress")
+        let desired = ($spec | get replicas -o) | default 1
+        let current = ($status | get replicas -o) | default 0
+        let ready = ($status | get readyReplicas -o) | default 0
+        let available = ($status | get availableReplicas -o) | default 0
+        let updated = ($status | get updatedReplicas -o) | default 0
+
+        {
+          desired: $desired
+          current: $current
+          ready: $ready
+          available: $available
+          updated: $updated
+          scaling_complete: ($current == $desired and $ready == $desired)
+          health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
         }
       }
       "replicaset" => {
-        let desired = if "replicas" in $spec { $spec.replicas } else { 1 }
-        let current = if "replicas" in $status { $status.replicas } else { 0 }
-        let ready = if "readyReplicas" in $status { $status.readyReplicas } else { 0 }
-        
-        $status_lines = ($status_lines | append $"  Desired Replicas: ($desired)")
-        $status_lines = ($status_lines | append $"  Current Replicas: ($current)")
-        $status_lines = ($status_lines | append $"  Ready Replicas: ($ready)")
-        
-        if $current == $desired and $ready == $desired {
-          $status_lines = ($status_lines | append $"  Status: ✅ Scaling Complete")
-        } else {
-          $status_lines = ($status_lines | append $"  Status: 🔄 Scaling in Progress")
+        let desired = ($spec | get replicas -o) | default 1
+        let current = ($status | get replicas -o) | default 0
+        let ready = ($status | get readyReplicas -o) | default 0
+
+        {
+          desired: $desired
+          current: $current
+          ready: $ready
+          scaling_complete: ($current == $desired and $ready == $desired)
+          health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
         }
       }
       "statefulset" => {
-        let desired = if "replicas" in $spec { $spec.replicas } else { 1 }
-        let current = if "replicas" in $status { $status.replicas } else { 0 }
-        let ready = if "readyReplicas" in $status { $status.readyReplicas } else { 0 }
-        let updated = if "updatedReplicas" in $status { $status.updatedReplicas } else { 0 }
-        
-        $status_lines = ($status_lines | append $"  Desired Replicas: ($desired)")
-        $status_lines = ($status_lines | append $"  Current Replicas: ($current)")
-        $status_lines = ($status_lines | append $"  Ready Replicas: ($ready)")
-        $status_lines = ($status_lines | append $"  Updated Replicas: ($updated)")
-        
-        if $current == $desired and $ready == $desired {
-          $status_lines = ($status_lines | append $"  Status: ✅ Scaling Complete")
-        } else {
-          $status_lines = ($status_lines | append $"  Status: 🔄 Scaling in Progress")
+        let desired = ($spec | get replicas -o) | default 1
+        let current = ($status | get replicas -o) | default 0
+        let ready = ($status | get readyReplicas -o) | default 0
+        let updated = ($status | get updatedReplicas -o) | default 0
+
+        {
+          desired: $desired
+          current: $current
+          ready: $ready
+          updated: $updated
+          scaling_complete: ($current == $desired and $ready == $desired)
+          health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
+        }
+      }
+      _ => {
+        {
+          error: $"Unsupported resource type: ($resource_type)"
+          health_status: "unknown"
         }
       }
     }
-    
-    # Add timing information
-    $status_lines = ($status_lines | append $"  Created: ($resource_info.metadata.creationTimestamp)")
-    
-    if "conditions" in $status {
-      $status_lines = ($status_lines | append $"  Conditions:")
-      for condition in $status.conditions {
-        let status_icon = if $condition.status == "True" { "✅" } else { "❌" }
-        $status_lines = ($status_lines | append $"    ($status_icon) ($condition.type): ($condition.status)")
+
+    # Get conditions if available
+    let conditions = ($status | get conditions -o) | default [] | each {|condition|
+      {
+        type: $condition.type
+        status: $condition.status
+        reason: ($condition | get reason -o)
+        message: ($condition | get message -o)
       }
     }
-    
-    $status_lines | str join (char newline)
-  } catch { |e|
-    $"Error getting scale status for ($resource_type)/($name): ($e.msg)"
+
+    {
+      type: "scale_status"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: ($namespace | default ($resource_info.metadata | get namespace -o))
+        created: ($resource_info.metadata | get creationTimestamp -o)
+      }
+      replica_status: $replica_status
+      conditions: $conditions
+      timestamp: (date now | format date "%Y-%m-%d %H:%M:%S")
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error getting scale status for ($resource_type)/($name): ($error.msg)"
+    } | to json
   }
 }
 
@@ -397,52 +439,57 @@ def autoscale_deployment [
   namespace?: string
 ] {
   try {
-    mut cmd = ["kubectl", "autoscale", "deployment", $deployment_name]
-    $cmd = ($cmd | append $"--min=($min_replicas)" | append $"--max=($max_replicas)")
-    $cmd = ($cmd | append $"--cpu-percent=($cpu_percent)")
-    
+    mut cmd_args = ["autoscale" "deployment" $deployment_name]
+    $cmd_args = ($cmd_args | append $"--min=($min_replicas)" | append $"--max=($max_replicas)")
+    $cmd_args = ($cmd_args | append $"--cpu-percent=($cpu_percent)")
+
     if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-    
-    let result = run-external $cmd.0 ...$cmd.1..
-    
+
+    let result = run-external "kubectl" ...$cmd_args
+
     # Get HPA status
-    try {
-      mut hpa_cmd = ["kubectl", "get", "hpa", $deployment_name, "--output", "wide"]
+    let hpa_status = try {
+      mut hpa_cmd_args = ["get" "hpa" $deployment_name "--output" "json"]
       if $namespace != null {
-        $hpa_cmd = ($hpa_cmd | append "--namespace" | append $namespace)
+        $hpa_cmd_args = ($hpa_cmd_args | append "--namespace" | append $namespace)
       }
-      
-      let hpa_status = run-external $hpa_cmd.0 ...$hpa_cmd.1..
-      
-      $"Horizontal Pod Autoscaler Created:
-($result)
 
-Current HPA Status:
-($hpa_status)
-
-Configuration:
-- Deployment: ($deployment_name)
-- Min Replicas: ($min_replicas)
-- Max Replicas: ($max_replicas)
-- Target CPU: ($cpu_percent)%
-
-Command executed: ($cmd | str join ' ')"
+      run-external "kubectl" ...$hpa_cmd_args | from json
     } catch {
-      $"Horizontal Pod Autoscaler Created:
-($result)
-
-Note: HPA status could not be retrieved immediately.
-Use 'kubectl get hpa' to check status later."
+      {error: "Could not retrieve HPA status immediately"}
     }
-  } catch { |e|
-    $"Error creating autoscaler for deployment ($deployment_name): ($e.msg)
-Please check:
-- Deployment exists and is running
-- Metrics server is installed in the cluster
-- Resource requests are set on the deployment containers
-- You have permission to create HPA resources"
+
+    {
+      type: "autoscaler_result"
+      deployment: $deployment_name
+      namespace: $namespace
+      configuration: {
+        min_replicas: $min_replicas
+        max_replicas: $max_replicas
+        cpu_target_percent: $cpu_percent
+      }
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      create_output: $result
+      hpa_status: $hpa_status
+      notes: [
+        "HPA requires metrics-server to be installed"
+        "Deployment containers must have resource requests set"
+        "Use 'kubectl get hpa' to monitor autoscaler status"
+      ]
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error creating autoscaler for deployment ($deployment_name): ($error.msg)"
+      suggestions: [
+        "Verify deployment exists and is running"
+        "Check if metrics-server is installed in the cluster"
+        "Ensure deployment containers have resource requests"
+        "Confirm you have permission to create HPA resources"
+      ]
+    } | to json
   }
 }
 
@@ -456,51 +503,72 @@ def scale_with_monitoring [
 ] {
   try {
     # Get initial status
-    let initial_status = get_scale_status $resource_type $name $namespace
-    
+    let initial_status = get_scale_status $resource_type $name $namespace | from json
+
     # Perform scaling
-    let scale_result = scale_resource $resource_type $name $replicas $namespace null "10m"
-    
+    let scale_result = scale_resource $resource_type $name $replicas $namespace "10m" | from json
+
+    if $scale_result.type == "error" {
+      return ($scale_result | to json)
+    }
+
     # Monitor progress
     let start_time = date now
     let monitor_end = $start_time + ($monitor_duration | into duration)
-    
-    mut monitoring_results = [$"Scaling and Monitoring ($resource_type)/($name):"]
-    $monitoring_results = ($monitoring_results | append $"")
-    $monitoring_results = ($monitoring_results | append $"Initial Status:")
-    $monitoring_results = ($monitoring_results | append $initial_status)
-    $monitoring_results = ($monitoring_results | append $"")
-    $monitoring_results = ($monitoring_results | append $"Scaling Result:")
-    $monitoring_results = ($monitoring_results | append $scale_result)
-    $monitoring_results = ($monitoring_results | append $"")
-    $monitoring_results = ($monitoring_results | append $"Monitoring Progress for ($monitor_duration):")
-    
-    # Monitor for the specified duration
+
+    mut monitoring_data = []
     mut check_count = 0
+
     while (date now) < $monitor_end {
       sleep 15sec
       $check_count = $check_count + 1
-      
-      let current_status = get_scale_status $resource_type $name $namespace
+
+      let current_status = get_scale_status $resource_type $name $namespace | from json
       let elapsed = (date now) - $start_time
-      
-      $monitoring_results = ($monitoring_results | append $"")
-      $monitoring_results = ($monitoring_results | append $"Check #($check_count) (($elapsed | format duration sec) elapsed):")
-      $monitoring_results = ($monitoring_results | append $current_status)
-      
+
+      let status_check = {
+        check_number: $check_count
+        elapsed_time: $elapsed
+        status: $current_status
+        scaling_complete: (($current_status | get replica_status -o | get scaling_complete -o) | default false)
+      }
+
+      $monitoring_data = ($monitoring_data | append $status_check)
+
       # Check if scaling is complete
-      if ($current_status | str contains "✅ Scaling Complete") {
-        $monitoring_results = ($monitoring_results | append $"")
-        $monitoring_results = ($monitoring_results | append $"🎉 Scaling completed successfully!")
+      if $status_check.scaling_complete {
         break
       }
     }
-    
-    $monitoring_results = ($monitoring_results | append $"")
-    $monitoring_results = ($monitoring_results | append $"Monitoring completed at (date now)")
-    
-    $monitoring_results | str join (char newline)
-  } catch { |e|
-    $"Error during scaling with monitoring: ($e.msg)"
+
+    let final_status = get_scale_status $resource_type $name $namespace | from json
+    let total_duration = (date now) - $start_time
+
+    {
+      type: "scale_with_monitoring_result"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: $namespace
+      }
+      target_replicas: $replicas
+      initial_status: $initial_status
+      scale_result: $scale_result
+      monitoring: {
+        duration: $monitor_duration
+        actual_duration: $total_duration
+        checks_performed: $check_count
+        monitoring_data: $monitoring_data
+      }
+      final_status: $final_status
+      scaling_completed: (($final_status | get replica_status -o | get scaling_complete -o) | default false)
+      summary: $"Scaling monitoring completed after ($check_count) checks over ($total_duration)"
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error during scaling with monitoring: ($error.msg)"
+    } | to json
   }
 }
+

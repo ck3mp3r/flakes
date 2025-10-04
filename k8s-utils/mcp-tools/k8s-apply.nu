@@ -155,43 +155,43 @@ def "main call-tool" [
 
   match $tool_name {
     "apply_yaml" => {
-      let file_path = if "file_path" in $parsed_args { $parsed_args | get file_path } else { null }
-      let yaml_content = if "yaml_content" in $parsed_args { $parsed_args | get yaml_content } else { null }
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let dry_run = if "dry_run" in $parsed_args { $parsed_args | get dry_run } else { false }
-      let validate = if "validate" in $parsed_args { $parsed_args | get validate } else { true }
-      let force = if "force" in $parsed_args { $parsed_args | get force } else { false }
-      let server_side = if "server_side" in $parsed_args { $parsed_args | get server_side } else { false }
-      
+      let file_path = $parsed_args.file_path?
+      let yaml_content = $parsed_args.yaml_content?
+      let namespace = $parsed_args.namespace?
+      let dry_run = $parsed_args.dry_run? | default false
+      let validate = $parsed_args.validate? | default true
+      let force = $parsed_args.force? | default false
+      let server_side = $parsed_args.server_side? | default false
+
       apply_yaml $file_path $yaml_content $namespace $dry_run $validate $force $server_side
     }
     "apply_kustomization" => {
-      let directory = $parsed_args | get directory
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let dry_run = if "dry_run" in $parsed_args { $parsed_args | get dry_run } else { false }
-      
+      let directory = $parsed_args.directory
+      let namespace = $parsed_args.namespace?
+      let dry_run = $parsed_args.dry_run? | default false
+
       apply_kustomization $directory $namespace $dry_run
     }
     "validate_yaml" => {
-      let file_path = if "file_path" in $parsed_args { $parsed_args | get file_path } else { null }
-      let yaml_content = if "yaml_content" in $parsed_args { $parsed_args | get yaml_content } else { null }
-      
+      let file_path = $parsed_args.file_path?
+      let yaml_content = $parsed_args.yaml_content?
+
       validate_yaml $file_path $yaml_content
     }
     "diff_apply" => {
-      let file_path = if "file_path" in $parsed_args { $parsed_args | get file_path } else { null }
-      let yaml_content = if "yaml_content" in $parsed_args { $parsed_args | get yaml_content } else { null }
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      
+      let file_path = $parsed_args.file_path?
+      let yaml_content = $parsed_args.yaml_content?
+      let namespace = $parsed_args.namespace?
+
       diff_apply $file_path $yaml_content $namespace
     }
     "apply_with_wait" => {
-      let file_path = if "file_path" in $parsed_args { $parsed_args | get file_path } else { null }
-      let yaml_content = if "yaml_content" in $parsed_args { $parsed_args | get yaml_content } else { null }
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let timeout = if "timeout" in $parsed_args { $parsed_args | get timeout } else { "5m" }
-      let condition = if "condition" in $parsed_args { $parsed_args | get condition } else { "condition=Ready" }
-      
+      let file_path = $parsed_args.file_path?
+      let yaml_content = $parsed_args.yaml_content?
+      let namespace = $parsed_args.namespace?
+      let timeout = $parsed_args.timeout? | default "5m"
+      let condition = $parsed_args.condition? | default "condition=Ready"
+
       apply_with_wait $file_path $yaml_content $namespace $timeout $condition
     }
     _ => {
@@ -211,72 +211,88 @@ def apply_yaml [
   server_side: bool = false
 ] {
   if $file_path == null and $yaml_content == null {
-    return "Error: Must provide either file_path or yaml_content"
+    return (
+      {
+        type: "error"
+        message: "Must provide either file_path or yaml_content"
+      } | to json
+    )
   }
-  
+
   try {
-    mut cmd = ["kubectl", "apply"]
-    
+    mut cmd_args = ["apply"]
+
     # Determine input source
     if $file_path != null {
       # Check if file exists
       if not ($file_path | path exists) {
-        return $"Error: File '($file_path)' does not exist"
+        return (
+          {
+            type: "error"
+            message: $"File '($file_path)' does not exist"
+          } | to json
+        )
       }
-      $cmd = ($cmd | append "--filename" | append $file_path)
+      $cmd_args = ($cmd_args | append "--filename" | append $file_path)
     } else {
       # Use stdin for yaml_content
-      $cmd = ($cmd | append "--filename" | append "-")
+      $cmd_args = ($cmd_args | append "--filename" | append "-")
     }
-    
+
     # Add options
     if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-    
+
     if $dry_run {
-      $cmd = ($cmd | append "--dry-run=client")
+      $cmd_args = ($cmd_args | append "--dry-run=client")
     }
-    
+
     if not $validate {
-      $cmd = ($cmd | append "--validate=false")
+      $cmd_args = ($cmd_args | append "--validate=false")
     }
-    
+
     if $force {
-      $cmd = ($cmd | append "--force")
+      $cmd_args = ($cmd_args | append "--force")
     }
-    
+
     if $server_side {
-      $cmd = ($cmd | append "--server-side")
+      $cmd_args = ($cmd_args | append "--server-side")
     }
-    
+
     # Execute command
     let result = if $yaml_content != null {
-      $yaml_content | run-external $cmd.0 ...$cmd.1..
+      $yaml_content | run-external "kubectl" ...$cmd_args
     } else {
-      run-external $cmd.0 ...$cmd.1..
+      run-external "kubectl" ...$cmd_args
     }
-    
-    let operation = if $dry_run { "Dry Run" } else { "Apply" }
-    let source = if $file_path != null { $file_path } else { "YAML content" }
-    
-    $"Kubernetes ($operation) Result - ($source):
-($result)
 
-Command executed: ($cmd | str join ' ')
-Options used:
-- Dry run: ($dry_run)
-- Validate: ($validate)
-- Force: ($force)
-- Server-side: ($server_side)"
-  } catch { |e|
-    $"Error applying YAML: ($e.msg)
-Please check:
-- YAML syntax is valid
-- Resources are properly defined
-- You have permission to create/update resources
-- Namespace exists (if specified)
-- Resource versions are compatible"
+    {
+      type: "apply_result"
+      operation: (if $dry_run { "dry_run" } else { "apply" })
+      source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
+      options: {
+        namespace: $namespace
+        dry_run: $dry_run
+        validate: $validate
+        force: $force
+        server_side: $server_side
+      }
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      result: $result
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error applying YAML: ($error.msg)"
+      suggestions: [
+        "Check YAML syntax is valid"
+        "Verify resources are properly defined"
+        "Ensure you have permission to create/update resources"
+        "Confirm namespace exists"
+        "Validate resource versions are compatible"
+      ]
+    } | to json
   }
 }
 
@@ -289,44 +305,60 @@ def apply_kustomization [
   try {
     # Check if directory exists and contains kustomization.yaml
     if not ($directory | path exists) {
-      return $"Error: Directory '($directory)' does not exist"
+      return (
+        {
+          type: "error"
+          message: $"Directory '($directory)' does not exist"
+        } | to json
+      )
     }
-    
+
     let kustomization_files = [
-      ($directory | path join "kustomization.yaml"),
-      ($directory | path join "kustomization.yml"),
+      ($directory | path join "kustomization.yaml")
+      ($directory | path join "kustomization.yml")
       ($directory | path join "Kustomization")
     ]
-    
-    let kustomization_exists = $kustomization_files | any { |file| $file | path exists }
-    if not $kustomization_exists {
-      return $"Error: No kustomization file found in '($directory)'"
-    }
-    
-    mut cmd = ["kubectl", "apply", "--kustomize", $directory]
-    
-    if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
-    }
-    
-    if $dry_run {
-      $cmd = ($cmd | append "--dry-run=client")
-    }
-    
-    let result = run-external $cmd.0 ...$cmd.1..
-    
-    let operation = if $dry_run { "Dry Run" } else { "Apply" }
-    
-    $"Kubernetes Kustomization ($operation) Result - ($directory):
-($result)
 
-Command executed: ($cmd | str join ' ')"
-  } catch { |e|
-    $"Error applying kustomization: ($e.msg)
-Please check:
-- Directory contains valid kustomization.yaml
-- All referenced resources exist
-- Kustomization syntax is correct"
+    let kustomization_exists = $kustomization_files | any {|file| $file | path exists }
+    if not $kustomization_exists {
+      return (
+        {
+          type: "error"
+          message: $"No kustomization file found in '($directory)'"
+        } | to json
+      )
+    }
+
+    mut cmd_args = ["apply" "--kustomize" $directory]
+
+    if $namespace != null {
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
+    }
+
+    if $dry_run {
+      $cmd_args = ($cmd_args | append "--dry-run=client")
+    }
+
+    let result = run-external "kubectl" ...$cmd_args
+
+    {
+      type: "kustomization_apply"
+      operation: (if $dry_run { "dry_run" } else { "apply" })
+      directory: $directory
+      namespace: $namespace
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      result: $result
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error applying kustomization: ($error.msg)"
+      suggestions: [
+        "Verify directory contains valid kustomization.yaml"
+        "Check all referenced resources exist"
+        "Validate kustomization syntax is correct"
+      ]
+    } | to json
   }
 }
 
@@ -336,43 +368,58 @@ def validate_yaml [
   yaml_content?: string
 ] {
   if $file_path == null and $yaml_content == null {
-    return "Error: Must provide either file_path or yaml_content"
+    return (
+      {
+        type: "error"
+        message: "Must provide either file_path or yaml_content"
+      } | to json
+    )
   }
-  
+
   try {
-    mut cmd = ["kubectl", "apply", "--dry-run=client", "--validate=true"]
-    
+    mut cmd_args = ["apply" "--dry-run=client" "--validate=true"]
+
     if $file_path != null {
       if not ($file_path | path exists) {
-        return $"Error: File '($file_path)' does not exist"
+        return (
+          {
+            type: "error"
+            message: $"File '($file_path)' does not exist"
+          } | to json
+        )
       }
-      $cmd = ($cmd | append "--filename" | append $file_path)
+      $cmd_args = ($cmd_args | append "--filename" | append $file_path)
     } else {
-      $cmd = ($cmd | append "--filename" | append "-")
+      $cmd_args = ($cmd_args | append "--filename" | append "-")
     }
-    
+
     let result = if $yaml_content != null {
-      $yaml_content | run-external $cmd.0 ...$cmd.1..
+      $yaml_content | run-external "kubectl" ...$cmd_args
     } else {
-      run-external $cmd.0 ...$cmd.1..
+      run-external "kubectl" ...$cmd_args
     }
-    
-    let source = if $file_path != null { $file_path } else { "YAML content" }
-    
-    $"✅ Validation Successful - ($source):
-($result)
 
-The YAML configuration is valid and can be applied to the cluster."
-  } catch { |e|
-    let source = if $file_path != null { $file_path } else { "YAML content" }
-    $"❌ Validation Failed - ($source):
-($e.msg)
-
-Common issues:
-- Invalid YAML syntax
-- Missing required fields
-- Invalid resource definitions
-- Incorrect API versions"
+    {
+      type: "validation_result"
+      status: "valid"
+      source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      result: $result
+      message: "YAML configuration is valid and can be applied to the cluster"
+    } | to json
+  } catch {|error|
+    {
+      type: "validation_result"
+      status: "invalid"
+      source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
+      error_message: $error.msg
+      suggestions: [
+        "Check YAML syntax for errors"
+        "Verify required fields are present"
+        "Validate resource definitions"
+        "Confirm API versions are correct"
+      ]
+    } | to json
   }
 }
 
@@ -383,48 +430,61 @@ def diff_apply [
   namespace?: string
 ] {
   if $file_path == null and $yaml_content == null {
-    return "Error: Must provide either file_path or yaml_content"
+    return (
+      {
+        type: "error"
+        message: "Must provide either file_path or yaml_content"
+      } | to json
+    )
   }
-  
+
   try {
-    mut cmd = ["kubectl", "diff"]
-    
+    mut cmd_args = ["diff"]
+
     if $file_path != null {
       if not ($file_path | path exists) {
-        return $"Error: File '($file_path)' does not exist"
+        return (
+          {
+            type: "error"
+            message: $"File '($file_path)' does not exist"
+          } | to json
+        )
       }
-      $cmd = ($cmd | append "--filename" | append $file_path)
+      $cmd_args = ($cmd_args | append "--filename" | append $file_path)
     } else {
-      $cmd = ($cmd | append "--filename" | append "-")
+      $cmd_args = ($cmd_args | append "--filename" | append "-")
     }
-    
-    if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
-    }
-    
-    let result = if $yaml_content != null {
-      $yaml_content | run-external $cmd.0 ...$cmd.1..
-    } else {
-      run-external $cmd.0 ...$cmd.1..
-    }
-    
-    let source = if $file_path != null { $file_path } else { "YAML content" }
-    
-    if ($result | str length) == 0 {
-      $"No differences found - ($source):
-The configuration matches the current cluster state."
-    } else {
-      $"Configuration Differences - ($source):
-($result)
 
-Legend:
-- Lines starting with '-' will be removed
-- Lines starting with '+' will be added
-- Lines starting with ' ' (space) remain unchanged"
+    if $namespace != null {
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-  } catch { |e|
-    $"Error computing diff: ($e.msg)
-Note: Some resources may not exist yet, which is normal for new deployments."
+
+    let result = if $yaml_content != null {
+      $yaml_content | run-external "kubectl" ...$cmd_args
+    } else {
+      run-external "kubectl" ...$cmd_args
+    }
+
+    {
+      type: "diff_result"
+      source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
+      namespace: $namespace
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      diff_output: $result
+      has_changes: (($result | str length) > 0)
+      legend: {
+        "-": "Lines to be removed"
+        "+": "Lines to be added"
+        " ": "Unchanged lines"
+      }
+    } | to json
+  } catch {|error|
+    {
+      type: "diff_result"
+      status: "error"
+      message: $"Error computing diff: ($error.msg)"
+      note: "Some resources may not exist yet, which is normal for new deployments"
+    } | to json
   }
 }
 
@@ -437,40 +497,60 @@ def apply_with_wait [
   condition: string = "condition=Ready"
 ] {
   if $file_path == null and $yaml_content == null {
-    return "Error: Must provide either file_path or yaml_content"
+    return (
+      {
+        type: "error"
+        message: "Must provide either file_path or yaml_content"
+      } | to json
+    )
   }
-  
+
   try {
     # First, apply the configuration
-    let apply_result = apply_yaml $file_path $yaml_content $namespace false true false false
-    
-    # Extract resource names from apply result for waiting
-    # This is a simplified approach - in practice, you might want to parse the output more carefully
-    print $apply_result
-    
-    # Try to wait for common resource types
-    let resource_types = ["deployment", "pod", "service"]
-    
-    for resource_type in $resource_types {
+    let apply_result = apply_yaml $file_path $yaml_content $namespace false true false false | from json
+
+    if $apply_result.type == "error" {
+      return ($apply_result | to json)
+    }
+
+    # Extract resource information from apply result for waiting
+    # This is a simplified approach - we'll wait for common resource types
+    let wait_results = ["deployment" "pod" "service"] | each {|resource_type|
       try {
-        mut wait_cmd = ["kubectl", "wait", $resource_type, "--all", $"--for=($condition)", $"--timeout=($timeout)"]
-        
+        mut wait_cmd_args = ["wait" $resource_type "--all" $"--for=($condition)" $"--timeout=($timeout)"]
+
         if $namespace != null {
-          $wait_cmd = ($wait_cmd | append "--namespace" | append $namespace)
+          $wait_cmd_args = ($wait_cmd_args | append "--namespace" | append $namespace)
         }
-        
-        let wait_result = run-external $wait_cmd.0 ...$wait_cmd.1..
-        print $"Wait result for ($resource_type): ($wait_result)"
-      } catch {
-        # Resource type might not exist or no resources of this type, continue
+
+        let wait_result = run-external "kubectl" ...$wait_cmd_args
+        {
+          resource_type: $resource_type
+          status: "success"
+          result: $wait_result
+        }
+      } catch {|error|
+        {
+          resource_type: $resource_type
+          status: "not_applicable"
+          message: $"No ($resource_type) resources to wait for"
+        }
       }
     }
-    
-    $"✅ Apply and Wait Completed
-Resources have been applied and are ready (or timeout reached).
-Timeout: ($timeout)
-Condition: ($condition)"
-  } catch { |e|
-    $"Error during apply with wait: ($e.msg)"
+
+    {
+      type: "apply_with_wait_result"
+      apply_result: $apply_result
+      wait_results: $wait_results
+      timeout: $timeout
+      condition: $condition
+      summary: "Resources have been applied and wait operations completed"
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error during apply with wait: ($error.msg)"
+    } | to json
   }
 }
+

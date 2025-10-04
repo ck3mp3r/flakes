@@ -34,7 +34,7 @@ def "main list-tools" [] {
             default: true
           }
         }
-        required: ["resource_type", "name"]
+        required: ["resource_type" "name"]
       }
     }
     {
@@ -61,7 +61,7 @@ def "main list-tools" [] {
             default: false
           }
         }
-        required: ["resource_type", "label_selector"]
+        required: ["resource_type" "label_selector"]
       }
     }
     {
@@ -83,7 +83,7 @@ def "main list-tools" [] {
             description: "Namespace (optional)"
           }
         }
-        required: ["resource_type", "name"]
+        required: ["resource_type" "name"]
       }
     }
     {
@@ -105,7 +105,7 @@ def "main list-tools" [] {
             description: "Namespace (optional)"
           }
         }
-        required: ["resource_type", "name"]
+        required: ["resource_type" "name"]
       }
     }
   ] | to json
@@ -120,33 +120,33 @@ def "main call-tool" [
 
   match $tool_name {
     "describe_resource" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let show_events = if "show_events" in $parsed_args { $parsed_args | get show_events } else { true }
-      
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let namespace = $parsed_args.namespace?
+      let show_events = $parsed_args.show_events? | default true
+
       describe_resource $resource_type $name $namespace $show_events
     }
     "describe_multiple" => {
-      let resource_type = $parsed_args | get resource_type
-      let label_selector = $parsed_args | get label_selector
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      let all_namespaces = if "all_namespaces" in $parsed_args { $parsed_args | get all_namespaces } else { false }
-      
+      let resource_type = $parsed_args.resource_type
+      let label_selector = $parsed_args.label_selector
+      let namespace = $parsed_args.namespace?
+      let all_namespaces = $parsed_args.all_namespaces? | default false
+
       describe_multiple $resource_type $label_selector $namespace $all_namespaces
     }
     "get_resource_events" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let namespace = $parsed_args.namespace?
+
       get_resource_events $resource_type $name $namespace
     }
     "resource_health_check" => {
-      let resource_type = $parsed_args | get resource_type
-      let name = $parsed_args | get name
-      let namespace = if "namespace" in $parsed_args { $parsed_args | get namespace } else { null }
-      
+      let resource_type = $parsed_args.resource_type
+      let name = $parsed_args.name
+      let namespace = $parsed_args.namespace?
+
       resource_health_check $resource_type $name $namespace
     }
     _ => {
@@ -163,28 +163,39 @@ def describe_resource [
   show_events: bool = true
 ] {
   try {
-    mut cmd = ["kubectl", "describe", $resource_type, $name]
-    
+    mut cmd_args = ["describe" $resource_type $name]
+
     # Add namespace if specified
     if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-    
-    # Add show-events flag
-    $cmd = ($cmd | append $"--show-events=($show_events)")
-    
-    let result = run-external $cmd.0 ...$cmd.1..
-    
-    $"Detailed Description - ($resource_type)/($name):
-($result)
 
-Command executed: ($cmd | str join ' ')"
-  } catch { |e|
-    $"Error describing ($resource_type)/($name): ($e.msg)
-Please check:
-- Resource exists in the specified namespace
-- Resource type is correct
-- You have permission to access the resource"
+    # Add show-events flag
+    $cmd_args = ($cmd_args | append $"--show-events=($show_events)")
+
+    let result = run-external "kubectl" ...$cmd_args
+
+    {
+      type: "resource_description"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: $namespace
+      }
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      description: $result
+      events_included: $show_events
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error describing ($resource_type)/($name): ($error.msg)"
+      suggestions: [
+        "Verify resource exists in the specified namespace"
+        "Check resource type spelling"
+        "Ensure you have permission to access the resource"
+      ]
+    } | to json
   }
 }
 
@@ -196,27 +207,38 @@ def describe_multiple [
   all_namespaces: bool = false
 ] {
   try {
-    mut cmd = ["kubectl", "describe", $resource_type, "--selector", $label_selector]
-    
+    mut cmd_args = ["describe" $resource_type "--selector" $label_selector]
+
     # Add namespace options
     if $all_namespaces {
-      $cmd = ($cmd | append "--all-namespaces")
+      $cmd_args = ($cmd_args | append "--all-namespaces")
     } else if $namespace != null {
-      $cmd = ($cmd | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
-    
-    let result = run-external $cmd.0 ...$cmd.1..
-    
-    $"Multiple Resource Description - ($resource_type) with selector '($label_selector)':
-($result)
 
-Command executed: ($cmd | str join ' ')"
-  } catch { |e|
-    $"Error describing resources with selector ($label_selector): ($e.msg)
-Please check:
-- Label selector syntax is correct
-- Resources matching the selector exist
-- Namespace is correct (if specified)"
+    let result = run-external "kubectl" ...$cmd_args
+
+    {
+      type: "multiple_resource_description"
+      filter: {
+        resource_type: $resource_type
+        label_selector: $label_selector
+        namespace: $namespace
+        all_namespaces: $all_namespaces
+      }
+      command: (["kubectl"] | append $cmd_args | str join " ")
+      description: $result
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error describing resources with selector ($label_selector): ($error.msg)"
+      suggestions: [
+        "Check label selector syntax"
+        "Verify resources matching the selector exist"
+        "Ensure namespace is correct"
+      ]
+    } | to json
   }
 }
 
@@ -227,42 +249,53 @@ def get_resource_events [
   namespace?: string
 ] {
   try {
-    mut get_cmd = ["kubectl", "get", "events"]
-    
+    mut events_cmd_args = ["get" "events"]
+
     # Add namespace if specified
     if $namespace != null {
-      $get_cmd = ($get_cmd | append "--namespace" | append $namespace)
+      $events_cmd_args = ($events_cmd_args | append "--namespace" | append $namespace)
     }
-    
-    # Filter events by involved object
-    $get_cmd = ($get_cmd | append "--field-selector" | append $"involvedObject.name=($name)")
-    
-    let events_result = run-external $get_cmd.0 ...$get_cmd.1..
-    
-    # Also get the resource description for context
-    mut describe_cmd = ["kubectl", "get", $resource_type, $name, "--output", "yaml"]
-    if $namespace != null {
-      $describe_cmd = ($describe_cmd | append "--namespace" | append $namespace)
-    }
-    
-    $"Events for ($resource_type)/($name):
-($events_result)
 
-Resource Overview:
-"
-    try {
-      let resource_info = run-external $describe_cmd.0 ...$describe_cmd.1.. | from yaml
-      let status = if "status" in $resource_info { $resource_info.status } else { "No status available" }
-      let phase = if ($status | describe) != "string" and "phase" in $status { $status.phase } else { "Unknown" }
-      
-      $"Status: ($phase)
-Created: ($resource_info.metadata.creationTimestamp)
-Labels: ($resource_info.metadata.labels | default {} | transpose key value | each { |row| $"($row.key)=($row.value)" } | str join ', ')"
+    # Filter events by involved object
+    $events_cmd_args = ($events_cmd_args | append "--field-selector" | append $"involvedObject.name=($name)")
+
+    let events_result = run-external "kubectl" ...$events_cmd_args
+
+    # Also get basic resource info for context
+    let resource_info = try {
+      mut info_cmd_args = ["get" $resource_type $name "--output" "json"]
+      if $namespace != null {
+        $info_cmd_args = ($info_cmd_args | append "--namespace" | append $namespace)
+      }
+
+      let raw_info = run-external "kubectl" ...$info_cmd_args | from json
+      {
+        created: $raw_info.metadata?.creationTimestamp?
+        labels: ($raw_info.metadata?.labels? | default {})
+        status: $raw_info.status?
+      }
     } catch {
-      "Unable to retrieve resource details"
+      {error: "Could not retrieve resource details"}
     }
-  } catch { |e|
-    $"Error retrieving events for ($resource_type)/($name): ($e.msg)"
+
+    {
+      type: "resource_events"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: $namespace
+      }
+      events: $events_result
+      resource_info: $resource_info
+      commands_executed: [
+        (["kubectl"] | append $events_cmd_args | str join " ")
+      ]
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error retrieving events for ($resource_type)/($name): ($error.msg)"
+    } | to json
   }
 }
 
@@ -273,108 +306,127 @@ def resource_health_check [
   namespace?: string
 ] {
   try {
-    mut health_report = [$"Health Check Report for ($resource_type)/($name):"]
-    
     # Get basic resource info
-    mut get_cmd = ["kubectl", "get", $resource_type, $name, "--output", "json"]
+    mut get_cmd_args = ["get" $resource_type $name "--output" "json"]
     if $namespace != null {
-      $get_cmd = ($get_cmd | append "--namespace" | append $namespace)
+      $get_cmd_args = ($get_cmd_args | append "--namespace" | append $namespace)
     }
-    
-    let resource_info = run-external $get_cmd.0 ...$get_cmd.1.. | from json
-    
-    # Check resource status
-    $health_report = ($health_report | append "")
-    $health_report = ($health_report | append "📊 Resource Status:")
-    
-    let status = if "status" in $resource_info { $resource_info.status } else { {} }
-    
-    match $resource_type {
+
+    let resource_info = run-external "kubectl" ...$get_cmd_args | from json
+
+    # Build health status based on resource type
+    let health_status = match $resource_type {
       "pod" => {
-        let phase = if "phase" in $status { $status.phase } else { "Unknown" }
-        $health_report = ($health_report | append $"  Phase: ($phase)")
-        
-        if "conditions" in $status {
-          $health_report = ($health_report | append "  Conditions:")
-          for condition in $status.conditions {
-            let status_icon = if $condition.status == "True" { "✅" } else { "❌" }
-            $health_report = ($health_report | append $"    ($status_icon) ($condition.type): ($condition.status)")
-          }
-        }
-        
-        if "containerStatuses" in $status {
-          $health_report = ($health_report | append "  Containers:")
-          for container in $status.containerStatuses {
-            let ready_icon = if $container.ready { "✅" } else { "❌" }
-            $health_report = ($health_report | append $"    ($ready_icon) ($container.name): Ready=($container.ready), Restarts=($container.restartCount)")
-          }
+        let phase = $resource_info.status?.phase? | default "Unknown"
+        let conditions = $resource_info.status?.conditions? | default []
+        let container_statuses = $resource_info.status?.containerStatuses? | default []
+
+        {
+          phase: $phase
+          conditions: (
+            $conditions | each {|cond|
+              {
+                type: $cond.type
+                status: $cond.status
+                ready: ($cond.status == "True")
+              }
+            }
+          )
+          containers: (
+            $container_statuses | each {|cont|
+              {
+                name: $cont.name
+                ready: $cont.ready
+                restart_count: $cont.restartCount
+                state: $cont.state
+              }
+            }
+          )
+          overall_health: (if $phase == "Running" { "healthy" } else if $phase == "Pending" { "pending" } else { "unhealthy" })
         }
       }
       "deployment" => {
-        let replicas = if "replicas" in $status { $status.replicas } else { 0 }
-        let ready_replicas = if "readyReplicas" in $status { $status.readyReplicas } else { 0 }
-        let available_replicas = if "availableReplicas" in $status { $status.availableReplicas } else { 0 }
-        
-        $health_report = ($health_report | append $"  Replicas: ($ready_replicas)/($replicas) ready, ($available_replicas) available")
-        
-        if "conditions" in $status {
-          for condition in $status.conditions {
-            let status_icon = if $condition.status == "True" { "✅" } else { "❌" }
-            $health_report = ($health_report | append $"  ($status_icon) ($condition.type): ($condition.reason)")
+        let replicas = $resource_info.status?.replicas? | default 0
+        let ready_replicas = $resource_info.status?.readyReplicas? | default 0
+        let available_replicas = $resource_info.status?.availableReplicas? | default 0
+        let conditions = $resource_info.status?.conditions? | default []
+
+        {
+          replicas: {
+            desired: $replicas
+            ready: $ready_replicas
+            available: $available_replicas
           }
+          conditions: (
+            $conditions | each {|cond|
+              {
+                type: $cond.type
+                status: $cond.status
+                reason: $cond.reason?
+              }
+            }
+          )
+          overall_health: (if $ready_replicas == $replicas and $available_replicas == $replicas { "healthy" } else { "degraded" })
         }
       }
       "service" => {
-        let service_type = if "type" in $resource_info.spec { $resource_info.spec.type } else { "ClusterIP" }
-        $health_report = ($health_report | append $"  Type: ($service_type)")
-        
-        if "clusterIP" in $resource_info.spec {
-          $health_report = ($health_report | append $"  Cluster IP: ($resource_info.spec.clusterIP)")
+        let service_type = $resource_info.spec?.type? | default "ClusterIP"
+        let cluster_ip = $resource_info.spec?.clusterIP?
+        let ports = $resource_info.spec?.ports? | default []
+
+        {
+          type: $service_type
+          cluster_ip: $cluster_ip
+          ports: (
+            $ports | each {|port|
+              {
+                port: $port.port
+                target_port: $port.targetPort
+                protocol: $port.protocol
+              }
+            }
+          )
+          overall_health: "active"
         }
-        
-        if "ports" in $resource_info.spec {
-          $health_report = ($health_report | append "  Ports:")
-          for port in $resource_info.spec.ports {
-            $health_report = ($health_report | append $"    ($port.port):($port.targetPort)/($port.protocol)")
-          }
+      }
+      _ => {
+        {
+          status: "unknown_resource_type"
+          overall_health: "unknown"
         }
       }
     }
-    
+
     # Get recent events
-    $health_report = ($health_report | append "")
-    $health_report = ($health_report | append "📋 Recent Events:")
-    
-    try {
-      mut events_cmd = ["kubectl", "get", "events", "--field-selector", $"involvedObject.name=($name)", "--sort-by", ".lastTimestamp"]
+    let recent_events = try {
+      mut events_cmd_args = ["get" "events" "--field-selector" $"involvedObject.name=($name)" "--sort-by" ".lastTimestamp"]
       if $namespace != null {
-        $events_cmd = ($events_cmd | append "--namespace" | append $namespace)
+        $events_cmd_args = ($events_cmd_args | append "--namespace" | append $namespace)
       }
-      
-      let events = run-external $events_cmd.0 ...$events_cmd.1.. | lines | last 5
-      for event in $events {
-        if ($event | str length) > 0 and not ($event | str starts-with "LAST SEEN") {
-          $health_report = ($health_report | append $"  ($event)")
-        }
-      }
+
+      run-external "kubectl" ...$events_cmd_args | lines | last 5
     } catch {
-      $health_report = ($health_report | append "  No recent events found")
+      []
     }
-    
-    # Resource age and labels
-    $health_report = ($health_report | append "")
-    $health_report = ($health_report | append "ℹ️  Resource Info:")
-    $health_report = ($health_report | append $"  Created: ($resource_info.metadata.creationTimestamp)")
-    $health_report = ($health_report | append $"  Namespace: (if $namespace != null { $namespace } else { $resource_info.metadata.namespace })")
-    
-    let labels = if "labels" in $resource_info.metadata { $resource_info.metadata.labels } else { {} }
-    if ($labels | length) > 0 {
-      let label_str = $labels | transpose key value | each { |row| $"($row.key)=($row.value)" } | str join ', '
-      $health_report = ($health_report | append $"  Labels: ($label_str)")
-    }
-    
-    $health_report | str join (char newline)
-  } catch { |e|
-    $"Error performing health check on ($resource_type)/($name): ($e.msg)"
+
+    {
+      type: "health_check"
+      resource: {
+        type: $resource_type
+        name: $name
+        namespace: ($namespace | default $resource_info.metadata?.namespace?)
+        created: $resource_info.metadata?.creationTimestamp?
+        labels: ($resource_info.metadata?.labels? | default {})
+      }
+      health_status: $health_status
+      recent_events: $recent_events
+      timestamp: (date now | format date "%Y-%m-%d %H:%M:%S")
+    } | to json
+  } catch {|error|
+    {
+      type: "error"
+      message: $"Error performing health check on ($resource_type)/($name): ($error.msg)"
+    } | to json
   }
 }
+
