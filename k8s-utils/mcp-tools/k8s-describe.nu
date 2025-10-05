@@ -173,7 +173,10 @@ def describe_resource [
     # Add show-events flag
     $cmd_args = ($cmd_args | append $"--show-events=($show_events)")
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute the command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     {
       type: "resource_description"
@@ -182,7 +185,7 @@ def describe_resource [
         name: $name
         namespace: $namespace
       }
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       description: $result
       events_included: $show_events
     } | to json
@@ -216,7 +219,10 @@ def describe_multiple [
       $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute the command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     {
       type: "multiple_resource_description"
@@ -226,7 +232,7 @@ def describe_multiple [
         namespace: $namespace
         all_namespaces: $all_namespaces
       }
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       description: $result
     } | to json
   } catch {|error|
@@ -259,7 +265,10 @@ def get_resource_events [
     # Filter events by involved object
     $events_cmd_args = ($events_cmd_args | append "--field-selector" | append $"involvedObject.name=($name)")
 
-    let events_result = run-external "kubectl" ...$events_cmd_args
+    # Build and execute the events command
+    let full_events_cmd = (["kubectl"] | append $events_cmd_args)
+    print $"Executing: ($full_events_cmd | str join ' ')"
+    let events_result = run-external ...$full_events_cmd
 
     # Also get basic resource info for context
     let resource_info = try {
@@ -268,7 +277,10 @@ def get_resource_events [
         $info_cmd_args = ($info_cmd_args | append "--namespace" | append $namespace)
       }
 
-      let raw_info = run-external "kubectl" ...$info_cmd_args | from json
+      # Build and execute the info command
+      let full_info_cmd = (["kubectl"] | append $info_cmd_args)
+      print $"Executing: ($full_info_cmd | str join ' ')"
+      let raw_info = run-external ...$full_info_cmd | from json
       {
         created: $raw_info.metadata?.creationTimestamp?
         labels: ($raw_info.metadata?.labels? | default {})
@@ -288,7 +300,7 @@ def get_resource_events [
       events: $events_result
       resource_info: $resource_info
       commands_executed: [
-        (["kubectl"] | append $events_cmd_args | str join " ")
+        ($full_events_cmd | str join " ")
       ]
     } | to json
   } catch {|error|
@@ -312,7 +324,10 @@ def resource_health_check [
       $get_cmd_args = ($get_cmd_args | append "--namespace" | append $namespace)
     }
 
-    let resource_info = run-external "kubectl" ...$get_cmd_args | from json
+    # Build and execute the get command
+    let full_get_cmd = (["kubectl"] | append $get_cmd_args)
+    print $"Executing: ($full_get_cmd | str join ' ')"
+    let resource_info = run-external ...$full_get_cmd | from json
 
     # Build health status based on resource type
     let health_status = match $resource_type {
@@ -404,7 +419,10 @@ def resource_health_check [
         $events_cmd_args = ($events_cmd_args | append "--namespace" | append $namespace)
       }
 
-      run-external "kubectl" ...$events_cmd_args | lines | last 5
+      # Build and execute the events command
+      let full_events_cmd = (["kubectl"] | append $events_cmd_args)
+      print $"Executing: ($full_events_cmd | str join ' ')"
+      run-external ...$full_events_cmd | lines | last 5
     } catch {
       []
     }

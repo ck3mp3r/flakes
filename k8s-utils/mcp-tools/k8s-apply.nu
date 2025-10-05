@@ -12,7 +12,7 @@ def "main list-tools" [] {
   [
     {
       name: "apply_yaml"
-      description: "[MODIFIES CLUSTER] Apply Kubernetes YAML configuration from file or content"
+      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply Kubernetes YAML configuration from file or content - can create, update, or replace resources"
       input_schema: {
         type: "object"
         properties: {
@@ -53,7 +53,7 @@ def "main list-tools" [] {
     }
     {
       name: "apply_kustomization"
-      description: "[MODIFIES CLUSTER] Apply resources from a kustomization directory"
+      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply resources from a kustomization directory - can create, update, or replace multiple resources"
       input_schema: {
         type: "object"
         properties: {
@@ -114,7 +114,7 @@ def "main list-tools" [] {
     }
     {
       name: "apply_with_wait"
-      description: "[MODIFIES CLUSTER] Apply configuration and wait for resources to be ready"
+      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply configuration and wait for resources to be ready - can create, update, or replace resources"
       input_schema: {
         type: "object"
         properties: {
@@ -260,11 +260,14 @@ def apply_yaml [
       $cmd_args = ($cmd_args | append "--server-side")
     }
 
-    # Execute command
+    # Build and execute command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    
     let result = if $yaml_content != null {
-      $yaml_content | run-external "kubectl" ...$cmd_args
+      $yaml_content | run-external ...$full_cmd
     } else {
-      run-external "kubectl" ...$cmd_args
+      run-external ...$full_cmd
     }
 
     {
@@ -278,7 +281,7 @@ def apply_yaml [
         force: $force
         server_side: $server_side
       }
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       result: $result
     } | to json
   } catch {|error|
@@ -339,14 +342,17 @@ def apply_kustomization [
       $cmd_args = ($cmd_args | append "--dry-run=client")
     }
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     {
       type: "kustomization_apply"
       operation: (if $dry_run { "dry_run" } else { "apply" })
       directory: $directory
       namespace: $namespace
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       result: $result
     } | to json
   } catch {|error|
@@ -393,17 +399,21 @@ def validate_yaml [
       $cmd_args = ($cmd_args | append "--filename" | append "-")
     }
 
+    # Build and execute command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    
     let result = if $yaml_content != null {
-      $yaml_content | run-external "kubectl" ...$cmd_args
+      $yaml_content | run-external ...$full_cmd
     } else {
-      run-external "kubectl" ...$cmd_args
+      run-external ...$full_cmd
     }
 
     {
       type: "validation_result"
       status: "valid"
       source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       result: $result
       message: "YAML configuration is valid and can be applied to the cluster"
     } | to json
@@ -459,17 +469,21 @@ def diff_apply [
       $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
 
+    # Build and execute command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    
     let result = if $yaml_content != null {
-      $yaml_content | run-external "kubectl" ...$cmd_args
+      $yaml_content | run-external ...$full_cmd
     } else {
-      run-external "kubectl" ...$cmd_args
+      run-external ...$full_cmd
     }
 
     {
       type: "diff_result"
       source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
       namespace: $namespace
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       diff_output: $result
       has_changes: (($result | str length) > 0)
       legend: {
@@ -523,7 +537,10 @@ def apply_with_wait [
           $wait_cmd_args = ($wait_cmd_args | append "--namespace" | append $namespace)
         }
 
-        let wait_result = run-external "kubectl" ...$wait_cmd_args
+        # Build and execute wait command
+        let full_wait_cmd = (["kubectl"] | append $wait_cmd_args)
+        print $"Executing: ($full_wait_cmd | str join ' ')"
+        let wait_result = run-external ...$full_wait_cmd
         {
           resource_type: $resource_type
           status: "success"

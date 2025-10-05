@@ -12,7 +12,7 @@ def "main list-tools" [] {
   [
     {
       name: "scale_resource"
-      description: "[MODIFIES CLUSTER] Scale deployments, replica sets, or stateful sets"
+      description: "[MODIFIES CLUSTER] [DISRUPTIVE] Scale deployments, replica sets, or stateful sets - can cause service disruption"
       input_schema: {
         type: "object"
         properties: {
@@ -44,12 +44,12 @@ def "main list-tools" [] {
             default: "5m"
           }
         }
-        required: ["resource_type" "name" "replicas"]
+        required: ["resource_type", "name", "namespace", "replicas"]
       }
     }
     {
       name: "scale_multiple"
-      description: "[MODIFIES CLUSTER] Scale multiple resources at once"
+      description: "[MODIFIES CLUSTER] [HIGHLY DISRUPTIVE] Scale multiple resources at once - can cause widespread service disruption"
       input_schema: {
         type: "object"
         properties: {
@@ -63,7 +63,7 @@ def "main list-tools" [] {
                 replicas: {type: "integer"}
                 namespace: {type: "string"}
               }
-              required: ["resource_type" "name" "replicas"]
+              required: ["resource_type", "name", "namespace", "replicas"]
             }
             description: "List of resources to scale"
           }
@@ -92,15 +92,15 @@ def "main list-tools" [] {
           }
           namespace: {
             type: "string"
-            description: "Namespace (optional)"
+            description: "Namespace (mandatory for safety)"
           }
         }
-        required: ["resource_type" "name"]
+        required: ["resource_type", "name", "namespace"]
       }
     }
     {
       name: "autoscale_deployment"
-      description: "[MODIFIES CLUSTER] Set up horizontal pod autoscaling for a deployment"
+      description: "[MODIFIES CLUSTER] Set up horizontal pod autoscaling for a deployment - modifies scaling behavior"
       input_schema: {
         type: "object"
         properties: {
@@ -125,15 +125,15 @@ def "main list-tools" [] {
           }
           namespace: {
             type: "string"
-            description: "Namespace (optional)"
+            description: "Namespace (mandatory for safety)"
           }
         }
-        required: ["deployment_name" "min_replicas" "max_replicas"]
+        required: ["deployment_name", "namespace", "min_replicas", "max_replicas"]
       }
     }
     {
       name: "scale_with_monitoring"
-      description: "[MODIFIES CLUSTER] Scale resource and monitor the scaling progress"
+      description: "[MODIFIES CLUSTER] [DISRUPTIVE] Scale resource and monitor the scaling progress - can cause service disruption"
       input_schema: {
         type: "object"
         properties: {
@@ -151,7 +151,7 @@ def "main list-tools" [] {
           }
           namespace: {
             type: "string"
-            description: "Namespace (optional)"
+            description: "Namespace (mandatory for safety)"
           }
           monitor_duration: {
             type: "string"
@@ -159,7 +159,7 @@ def "main list-tools" [] {
             default: "2m"
           }
         }
-        required: ["resource_type" "name" "replicas"]
+        required: ["resource_type", "name", "namespace", "replicas"]
       }
     }
   ] | to json
@@ -239,7 +239,10 @@ def scale_resource [
     # Add timeout
     $cmd_args = ($cmd_args | append $"--timeout=($timeout)")
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     # Get current status after scaling
     let status = get_scale_status $resource_type $name $namespace | from json
@@ -255,7 +258,7 @@ def scale_resource [
       target_replicas: $replicas
       precondition: null
       timeout: $timeout
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       scale_output: $result
       current_status: $status
     } | to json
@@ -340,7 +343,10 @@ def get_scale_status [
       $get_cmd_args = ($get_cmd_args | append "--namespace" | append $namespace)
     }
 
-    let resource_info = run-external "kubectl" ...$get_cmd_args | from json
+    # Build and execute get command
+    let full_get_cmd = (["kubectl"] | append $get_cmd_args)
+    print $"Executing: ($full_get_cmd | str join ' ')"
+    let resource_info = run-external ...$full_get_cmd | from json
 
     let spec = ($resource_info | get spec -o)
     let status = ($resource_info | get status -o)
@@ -447,7 +453,10 @@ def autoscale_deployment [
       $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute autoscale command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     # Get HPA status
     let hpa_status = try {
@@ -456,7 +465,10 @@ def autoscale_deployment [
         $hpa_cmd_args = ($hpa_cmd_args | append "--namespace" | append $namespace)
       }
 
-      run-external "kubectl" ...$hpa_cmd_args | from json
+      # Build and execute HPA get command
+      let full_hpa_cmd = (["kubectl"] | append $hpa_cmd_args)
+      print $"Executing: ($full_hpa_cmd | str join ' ')"
+      run-external ...$full_hpa_cmd | from json
     } catch {
       {error: "Could not retrieve HPA status immediately"}
     }
@@ -470,7 +482,7 @@ def autoscale_deployment [
         max_replicas: $max_replicas
         cpu_target_percent: $cpu_percent
       }
-      command: (["kubectl"] | append $cmd_args | str join " ")
+      command: ($full_cmd | str join " ")
       create_output: $result
       hpa_status: $hpa_status
       notes: [
@@ -571,4 +583,3 @@ def scale_with_monitoring [
     } | to json
   }
 }
-

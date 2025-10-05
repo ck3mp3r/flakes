@@ -150,8 +150,10 @@ def get_resource [
       $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
     }
 
-    # Execute the command
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute the command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     if $output_format in ["json" "yaml"] {
       $result
@@ -159,7 +161,7 @@ def get_resource [
       {
         type: "kubectl_output"
         resource_type: $resource_type
-        command: (["kubectl"] | append $cmd_args | str join " ")
+        command: ($full_cmd | str join " ")
         output: $result
       } | to json
     }
@@ -190,7 +192,10 @@ def list_resource_types [namespaced?: bool] {
       }
     }
 
-    let result = run-external "kubectl" ...$cmd_args
+    # Build and execute the command
+    let full_cmd = (["kubectl"] | append $cmd_args)
+    print $"Executing: ($full_cmd | str join ' ')"
+    let result = run-external ...$full_cmd
 
     {
       type: "api_resources"
@@ -199,6 +204,7 @@ def list_resource_types [namespaced?: bool] {
           if $namespaced { "namespaced" } else { "cluster-scoped" }
         } else { "all" }
       )
+      command: ($full_cmd | str join " ")
       output: $result
       note: "Use these resource types with the get_resource tool"
     } | to json
@@ -214,7 +220,9 @@ def list_resource_types [namespaced?: bool] {
 def get_resource_summary [resource_types: list<string>] {
   let summary_data = $resource_types | each {|resource_type|
     let count_result = try {
-      run-external "kubectl" "get" $resource_type "--all-namespaces" "--no-headers"
+      let full_cmd = ["kubectl" "get" $resource_type "--all-namespaces" "--no-headers"]
+      print $"Executing: ($full_cmd | str join ' ')"
+      run-external ...$full_cmd
       | lines
       | length
     } catch {
@@ -222,7 +230,9 @@ def get_resource_summary [resource_types: list<string>] {
     }
 
     let namespace_breakdown = try {
-      run-external "kubectl" "get" $resource_type "--all-namespaces" "--no-headers"
+      let full_cmd = ["kubectl" "get" $resource_type "--all-namespaces" "--no-headers"]
+      print $"Executing: ($full_cmd | str join ' ')"
+      run-external ...$full_cmd
       | lines
       | each {|line|
         let parts = $line | split row ' '
