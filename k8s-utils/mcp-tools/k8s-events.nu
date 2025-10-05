@@ -1,5 +1,3 @@
-#!/usr/bin/env nu
-
 # Kubernetes events monitoring tool for nu-mcp
 
 # Default main command

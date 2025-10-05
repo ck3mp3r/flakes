@@ -29,8 +29,6 @@
             mkdir -p $out/share/nushell/mcp-tools/k8s
             cp -r * $out/share/nushell/mcp-tools/k8s/
 
-            # Make all .nu files executable
-            find $out/share/nushell/mcp-tools/k8s -name "*.nu" -exec chmod +x {} \;
           '';
 
           meta = with pkgs.lib; {

@@ -1,5 +1,3 @@
-#!/usr/bin/env nu
-
 # Kubernetes resource description tool for nu-mcp
 
 # Default main command

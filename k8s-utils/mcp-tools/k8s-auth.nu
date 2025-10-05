@@ -1,5 +1,3 @@
-#!/usr/bin/env nu
-
 # Kubernetes authorization and authentication tool for nu-mcp
 
 # Default main command

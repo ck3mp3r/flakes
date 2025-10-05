@@ -1,5 +1,3 @@
-#!/usr/bin/env nu
-
 # Kubernetes API resources and versions tool for nu-mcp
 
 # Default main command

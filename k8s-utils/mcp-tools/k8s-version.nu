@@ -1,5 +1,3 @@
-#!/usr/bin/env nu
-
 # Kubernetes version information tool for nu-mcp
 
 # Default main command
