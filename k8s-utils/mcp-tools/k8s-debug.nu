@@ -56,6 +56,10 @@ def "main list-tools" [] {
             description: "Attach to the debug container after creation"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["pod_name", "namespace"]
       }
@@ -90,6 +94,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Debug profile to use (general, baseline, restricted, netadmin, sysadmin)"
             default: "general"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["node_name"]
@@ -137,6 +145,10 @@ def "main list-tools" [] {
             description: "Replace the original container with debug container"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "resource_name", "namespace"]
       }
@@ -166,6 +178,10 @@ def "main list-tools" [] {
             description: "Force cleanup even if resources are still running"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -188,6 +204,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Include debug pods in output"
             default: true
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -220,6 +240,10 @@ def "main list-tools" [] {
             description: "Attach to the debug container after creation"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -244,8 +268,9 @@ def "main call-tool" [
       let replace = $parsed_args.replace? | default false
       let command = $parsed_args.command? | default ["/bin/sh"]
       let attach = $parsed_args.attach? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      debug_pod $pod_name $namespace $image $container $share_processes $copy_to $replace $command $attach
+      debug_pod $pod_name $namespace $image $container $share_processes $copy_to $replace $command $attach $delegate_to
     }
     "debug_node" => {
       let node_name = $parsed_args.node_name
@@ -253,8 +278,9 @@ def "main call-tool" [
       let command = $parsed_args.command? | default ["/bin/sh"]
       let attach = $parsed_args.attach? | default false
       let profile = $parsed_args.profile? | default "general"
+      let delegate_to = $parsed_args.delegate_to?
 
-      debug_node $node_name $image $command $attach $profile
+      debug_node $node_name $image $command $attach $profile $delegate_to
     }
     "debug_workload" => {
       let resource_type = $parsed_args.resource_type
@@ -265,23 +291,26 @@ def "main call-tool" [
       let copy_to = $parsed_args.copy_to?
       let same_node = $parsed_args.same_node? | default false
       let replace = $parsed_args.replace? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      debug_workload $resource_type $resource_name $namespace $image $container $copy_to $same_node $replace
+      debug_workload $resource_type $resource_name $namespace $image $container $copy_to $same_node $replace $delegate_to
     }
     "debug_cleanup" => {
       let namespace = $parsed_args.namespace?
       let label_selector = $parsed_args.label_selector? | default "kubectl.kubernetes.io/debug=true"
       let dry_run = $parsed_args.dry_run? | default false
       let force = $parsed_args.force? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      debug_cleanup $namespace $label_selector $dry_run $force
+      debug_cleanup $namespace $label_selector $dry_run $force $delegate_to
     }
     "list_debug_sessions" => {
       let namespace = $parsed_args.namespace?
       let show_ephemeral = $parsed_args.show_ephemeral? | default true
       let show_debug_pods = $parsed_args.show_debug_pods? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      list_debug_sessions $namespace $show_ephemeral $show_debug_pods
+      list_debug_sessions $namespace $show_ephemeral $show_debug_pods $delegate_to
     }
     "debug_network" => {
       let target_pod = $parsed_args.target_pod?
@@ -289,8 +318,9 @@ def "main call-tool" [
       let node_name = $parsed_args.node_name?
       let image = $parsed_args.image? | default "nicolaka/netshoot:latest"
       let attach = $parsed_args.attach? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      debug_network $target_pod $namespace $node_name $image $attach
+      debug_network $target_pod $namespace $node_name $image $attach $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -309,6 +339,7 @@ def debug_pod [
   replace: bool = false
   command: list<string> = ["/bin/sh"]
   attach: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["debug" $pod_name "--namespace" $namespace "--image" $image]
@@ -337,9 +368,34 @@ def debug_pod [
     $cmd_args = ($cmd_args | append "--")
     $cmd_args = ($cmd_args | append $command)
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "debug_pod"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          pod_name: $pod_name
+          namespace: $namespace
+          image: $image
+          container: $container
+          share_processes: $share_processes
+          copy_to: $copy_to
+          replace: $replace
+          command: $command
+          attach: $attach
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -358,7 +414,7 @@ def debug_pod [
         command: $command
         attach: $attach
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Debug session created for pod '($pod_name)' in namespace '($namespace)'"
       warning: "Debug containers share the pod's network and can access its filesystems"
@@ -385,6 +441,7 @@ def debug_node [
   command: list<string> = ["/bin/sh"]
   attach: bool = false
   profile: string = "general"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["debug" "node" $node_name "--image" $image]
@@ -444,6 +501,7 @@ def debug_workload [
   copy_to?: string
   same_node: bool = false
   replace: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["debug" $"($resource_type)/($resource_name)" "--namespace" $namespace "--image" $image]
@@ -513,6 +571,7 @@ def debug_cleanup [
   label_selector: string = "kubectl.kubernetes.io/debug=true"
   dry_run: bool = false
   force: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["delete" "pods" "--selector" $label_selector]
@@ -572,6 +631,7 @@ def list_debug_sessions [
   namespace?: string
   show_ephemeral: bool = true
   show_debug_pods: bool = true
+  delegate_to?: string
 ] {
   try {
     mut results = {}
@@ -648,6 +708,7 @@ def debug_network [
   node_name?: string
   image: string = "nicolaka/netshoot:latest"
   attach: bool = false
+  delegate_to?: string
 ] {
   if $target_pod == null and $node_name == null {
     return ({

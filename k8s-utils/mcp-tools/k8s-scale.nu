@@ -41,6 +41,10 @@ def "main list-tools" [] {
             description: "Timeout for the scaling operation (e.g., '5m', '30s')"
             default: "5m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace", "replicas"]
       }
@@ -70,6 +74,10 @@ def "main list-tools" [] {
             description: "Timeout for scaling operations"
             default: "5m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resources"]
       }
@@ -91,6 +99,10 @@ def "main list-tools" [] {
           namespace: {
             type: "string"
             description: "Namespace (mandatory for safety)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "name", "namespace"]
@@ -125,6 +137,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Namespace (mandatory for safety)"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["deployment_name", "namespace", "min_replicas", "max_replicas"]
       }
@@ -156,6 +172,10 @@ def "main list-tools" [] {
             description: "How long to monitor after scaling (e.g., '2m')"
             default: "2m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace", "replicas"]
       }
@@ -178,21 +198,24 @@ def "main call-tool" [
       let namespace = $parsed_args.namespace?
       let current_replicas = $parsed_args.current_replicas?
       let timeout = $parsed_args.timeout? | default "5m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      scale_resource $resource_type $name $replicas $namespace $timeout
+      scale_resource $resource_type $name $replicas $namespace $timeout $delegate_to
     }
     "scale_multiple" => {
       let resources = $parsed_args.resources
       let timeout = $parsed_args.timeout? | default "5m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      scale_multiple $resources $timeout
+      scale_multiple $resources $timeout $delegate_to
     }
     "get_scale_status" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace?
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_scale_status $resource_type $name $namespace
+      get_scale_status $resource_type $name $namespace $delegate_to
     }
     "autoscale_deployment" => {
       let deployment_name = $parsed_args.deployment_name
@@ -200,8 +223,9 @@ def "main call-tool" [
       let max_replicas = $parsed_args.max_replicas
       let cpu_percent = $parsed_args.cpu_percent? | default 80
       let namespace = $parsed_args.namespace?
+      let delegate_to = $parsed_args.delegate_to?
 
-      autoscale_deployment $deployment_name $min_replicas $max_replicas $cpu_percent $namespace
+      autoscale_deployment $deployment_name $min_replicas $max_replicas $cpu_percent $namespace $delegate_to
     }
     "scale_with_monitoring" => {
       let resource_type = $parsed_args.resource_type
@@ -209,8 +233,9 @@ def "main call-tool" [
       let replicas = $parsed_args.replicas
       let namespace = $parsed_args.namespace?
       let monitor_duration = $parsed_args.monitor_duration? | default "2m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      scale_with_monitoring $resource_type $name $replicas $namespace $monitor_duration
+      scale_with_monitoring $resource_type $name $replicas $namespace $monitor_duration $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -225,6 +250,7 @@ def scale_resource [
   replicas: int
   namespace?: string
   timeout: string = "5m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["scale" $resource_type $name $"--replicas=($replicas)"]
@@ -237,9 +263,30 @@ def scale_resource [
     # Add timeout
     $cmd_args = ($cmd_args | append $"--timeout=($timeout)")
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "scale_resource"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          replicas: $replicas
+          namespace: $namespace
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     # Get current status after scaling
@@ -256,7 +303,7 @@ def scale_resource [
       target_replicas: $replicas
       precondition: null
       timeout: $timeout
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       scale_output: $result
       current_status: $status
     } | to json
@@ -278,6 +325,7 @@ def scale_resource [
 def scale_multiple [
   resources: list<record>
   timeout: string = "5m"
+  delegate_to?: string
 ] {
   let scale_results = $resources | each {|resource|
     try {
@@ -297,6 +345,10 @@ def scale_multiple [
           type: $resource_type
           name: $name
           namespace: $namespace
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         status: "success"
         result: $scale_result
@@ -307,6 +359,10 @@ def scale_multiple [
           type: $resource.resource_type
           name: $resource.name
           namespace: $resource.namespace?
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         status: "error"
         error_message: $error.msg
@@ -333,6 +389,7 @@ def get_scale_status [
   resource_type: string
   name: string
   namespace?: string
+  delegate_to?: string
 ] {
   try {
     mut get_cmd_args = ["get" $resource_type $name "--output" "json"]
@@ -366,6 +423,10 @@ def get_scale_status [
           updated: $updated
           scaling_complete: ($current == $desired and $ready == $desired)
           health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
       "replicaset" => {
@@ -379,6 +440,10 @@ def get_scale_status [
           ready: $ready
           scaling_complete: ($current == $desired and $ready == $desired)
           health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
       "statefulset" => {
@@ -394,12 +459,20 @@ def get_scale_status [
           updated: $updated
           scaling_complete: ($current == $desired and $ready == $desired)
           health_status: (if $current == $desired and $ready == $desired { "healthy" } else { "scaling" })
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
       _ => {
         {
           error: $"Unsupported resource type: ($resource_type)"
           health_status: "unknown"
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -441,6 +514,7 @@ def autoscale_deployment [
   max_replicas: int
   cpu_percent: int = 80
   namespace?: string
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["autoscale" "deployment" $deployment_name]
@@ -510,6 +584,7 @@ def scale_with_monitoring [
   replicas: int
   namespace?: string
   monitor_duration: string = "2m"
+  delegate_to?: string
 ] {
   try {
     # Get initial status

@@ -46,6 +46,10 @@ def "main list-tools" [] {
             description: "Use server-side apply"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -160,8 +164,9 @@ def "main call-tool" [
       let validate = $parsed_args.validate? | default true
       let force = $parsed_args.force? | default false
       let server_side = $parsed_args.server_side? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      apply_yaml $file_path $yaml_content $namespace $dry_run $validate $force $server_side
+      apply_yaml $file_path $yaml_content $namespace $dry_run $validate $force $server_side $delegate_to
     }
     "apply_kustomization" => {
       let directory = $parsed_args.directory
@@ -207,6 +212,7 @@ def apply_yaml [
   validate: bool = true
   force: bool = false
   server_side: bool = false
+  delegate_to?: string
 ] {
   if $file_path == null and $yaml_content == null {
     return (
@@ -258,30 +264,54 @@ def apply_yaml [
       $cmd_args = ($cmd_args | append "--server-side")
     }
 
-    # Build and execute command
+    # Build the command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = ($full_cmd | str join " ")
     
-    let result = if $yaml_content != null {
-      $yaml_content | run-external ...$full_cmd
+    if $delegate_to != null {
+      # Return command for delegation
+      {
+        type: "kubectl_command_for_delegation"
+        operation: "apply_yaml"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        yaml_content: $yaml_content
+        parameters: {
+          file_path: $file_path
+          yaml_content: ($yaml_content != null)
+          namespace: $namespace
+          dry_run: $dry_run
+          validate: $validate
+          force: $force
+          server_side: $server_side
+        }
+      } | to json
     } else {
-      run-external ...$full_cmd
-    }
-
-    {
-      type: "apply_result"
-      operation: (if $dry_run { "dry_run" } else { "apply" })
-      source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
-      options: {
-        namespace: $namespace
-        dry_run: $dry_run
-        validate: $validate
-        force: $force
-        server_side: $server_side
+      # Execute directly (current behavior)
+      print $"Executing: ($cmd_string)"
+      
+      let result = if $yaml_content != null {
+        $yaml_content | run-external ...$full_cmd
+      } else {
+        run-external ...$full_cmd
       }
-      command: ($full_cmd | str join " ")
-      result: $result
-    } | to json
+
+      {
+        type: "apply_result"
+        operation: (if $dry_run { "dry_run" } else { "apply" })
+        source: (if $file_path != null { {type: "file" path: $file_path} } else { {type: "content"} })
+        options: {
+          namespace: $namespace
+          dry_run: $dry_run
+          validate: $validate
+          force: $force
+          server_side: $server_side
+        }
+        command: $cmd_string
+        result: $result
+      } | to json
+    }
   } catch {|error|
     {
       type: "error"

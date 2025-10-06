@@ -35,6 +35,10 @@ def "main list-tools" [] {
             description: "Force delete immediately (bypasses graceful deletion)"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -77,6 +81,10 @@ def "main list-tools" [] {
             description: "Timeout for wait operation"
             default: "1m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "selector", "namespace"]
       }
@@ -114,6 +122,10 @@ def "main list-tools" [] {
             description: "Ignore errors when resources don't exist"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -145,6 +157,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Timeout for wait operation"
             default: "2m"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "namespace"]
@@ -184,6 +200,10 @@ def "main list-tools" [] {
             description: "Timeout for wait operation"
             default: "1m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -207,8 +227,9 @@ def "main call-tool" [
       let timeout = $parsed_args.timeout? | default "30s"
       let grace_period = $parsed_args.grace_period?
       let force = $parsed_args.force? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      delete_resource $resource_type $name $namespace $wait $timeout $grace_period $force
+      delete_resource $resource_type $name $namespace $wait $timeout $grace_period $force $delegate_to
     }
     "delete_by_selector" => {
       let resource_type = $parsed_args.resource_type
@@ -218,8 +239,9 @@ def "main call-tool" [
       let dry_run = $parsed_args.dry_run? | default false
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "1m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      delete_by_selector $resource_type $selector $namespace $all_namespaces $dry_run $wait $timeout
+      delete_by_selector $resource_type $selector $namespace $all_namespaces $dry_run $wait $timeout $delegate_to
     }
     "delete_by_file" => {
       let file_path = $parsed_args.file_path?
@@ -228,8 +250,9 @@ def "main call-tool" [
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "1m"
       let ignore_not_found = $parsed_args.ignore_not_found? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      delete_by_file $file_path $yaml_content $namespace $wait $timeout $ignore_not_found
+      delete_by_file $file_path $yaml_content $namespace $wait $timeout $ignore_not_found $delegate_to
     }
     "delete_all_in_namespace" => {
       let resource_type = $parsed_args.resource_type
@@ -237,8 +260,9 @@ def "main call-tool" [
       let dry_run = $parsed_args.dry_run? | default false
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "2m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      delete_all_in_namespace $resource_type $namespace $dry_run $wait $timeout
+      delete_all_in_namespace $resource_type $namespace $dry_run $wait $timeout $delegate_to
     }
     "delete_with_cascade" => {
       let resource_type = $parsed_args.resource_type
@@ -247,8 +271,9 @@ def "main call-tool" [
       let cascade = $parsed_args.cascade? | default "background"
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "1m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      delete_with_cascade $resource_type $name $namespace $cascade $wait $timeout
+      delete_with_cascade $resource_type $name $namespace $cascade $wait $timeout $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -265,6 +290,7 @@ def delete_resource [
   timeout: string = "30s"
   grace_period?: int
   force: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["delete" $resource_type $name "--namespace" $namespace]
@@ -281,9 +307,32 @@ def delete_resource [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "delete_resource"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          wait: $wait
+          timeout: $timeout
+          grace_period: $grace_period
+          force: $force
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -300,7 +349,7 @@ def delete_resource [
         grace_period: $grace_period
         force: $force
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Successfully deleted ($resource_type) '($name)' in namespace '($namespace)'"
     } | to json
@@ -332,6 +381,7 @@ def delete_by_selector [
   dry_run: bool = false
   wait: bool = false
   timeout: string = "1m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["delete" $resource_type "--selector" $selector]
@@ -350,9 +400,32 @@ def delete_by_selector [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "delete_by_selector"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          selector: $selector
+          namespace: $namespace
+          all_namespaces: $all_namespaces
+          dry_run: $dry_run
+          wait: $wait
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -366,7 +439,7 @@ def delete_by_selector [
         wait: $wait
         timeout: $timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       warning: "Multiple resources may have been affected by this operation"
     } | to json
@@ -394,6 +467,7 @@ def delete_by_file [
   wait: bool = false
   timeout: string = "1m"
   ignore_not_found: bool = true
+  delegate_to?: string
 ] {
   if $file_path == null and $yaml_content == null {
     return (
@@ -434,9 +508,32 @@ def delete_by_file [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "delete_by_file"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        yaml_content: $yaml_content
+        parameters: {
+          file_path: $file_path
+          yaml_content: $yaml_content
+          namespace: $namespace
+          wait: $wait
+          timeout: $timeout
+          ignore_not_found: $ignore_not_found
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     
     let result = if $yaml_content != null {
       $yaml_content | run-external ...$full_cmd
@@ -454,7 +551,7 @@ def delete_by_file [
         timeout: $timeout
         ignore_not_found: $ignore_not_found
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: "Resources from file have been deleted"
     } | to json
@@ -479,6 +576,7 @@ def delete_all_in_namespace [
   dry_run: bool = false
   wait: bool = false
   timeout: string = "2m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["delete" $resource_type "--all" "--namespace" $namespace]
@@ -491,9 +589,30 @@ def delete_all_in_namespace [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "delete_all_in_namespace"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          namespace: $namespace
+          dry_run: $dry_run
+          wait: $wait
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -506,7 +625,7 @@ def delete_all_in_namespace [
         wait: $wait
         timeout: $timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       warning: $"ALL ($resource_type) resources in namespace '($namespace)' have been affected"
     } | to json
@@ -532,6 +651,7 @@ def delete_with_cascade [
   cascade: string = "background"
   wait: bool = false
   timeout: string = "1m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["delete" $resource_type $name "--namespace" $namespace $"--cascade=($cascade)"]
@@ -540,9 +660,31 @@ def delete_with_cascade [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "delete_with_cascade"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          cascade: $cascade
+          wait: $wait
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -558,7 +700,7 @@ def delete_with_cascade [
         wait: $wait
         timeout: $timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Successfully deleted ($resource_type) '($name)' with cascade policy '($cascade)'"
       cascade_explanation: (match $cascade {

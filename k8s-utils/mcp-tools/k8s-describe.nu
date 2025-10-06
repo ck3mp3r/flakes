@@ -31,6 +31,10 @@ def "main list-tools" [] {
             description: "Include related events in the description"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type" "name"]
       }
@@ -58,6 +62,10 @@ def "main list-tools" [] {
             description: "Search across all namespaces"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type" "label_selector"]
       }
@@ -79,6 +87,10 @@ def "main list-tools" [] {
           namespace: {
             type: "string"
             description: "Namespace (optional)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type" "name"]
@@ -102,6 +114,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Namespace (optional)"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type" "name"]
       }
@@ -122,30 +138,34 @@ def "main call-tool" [
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace?
       let show_events = $parsed_args.show_events? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      describe_resource $resource_type $name $namespace $show_events
+      describe_resource $resource_type $name $namespace $show_events $delegate_to
     }
     "describe_multiple" => {
       let resource_type = $parsed_args.resource_type
       let label_selector = $parsed_args.label_selector
       let namespace = $parsed_args.namespace?
       let all_namespaces = $parsed_args.all_namespaces? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      describe_multiple $resource_type $label_selector $namespace $all_namespaces
+      describe_multiple $resource_type $label_selector $namespace $all_namespaces $delegate_to
     }
     "get_resource_events" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace?
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_resource_events $resource_type $name $namespace
+      get_resource_events $resource_type $name $namespace $delegate_to
     }
     "resource_health_check" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace?
+      let delegate_to = $parsed_args.delegate_to?
 
-      resource_health_check $resource_type $name $namespace
+      resource_health_check $resource_type $name $namespace $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -159,6 +179,7 @@ def describe_resource [
   name: string
   namespace?: string
   show_events: bool = true
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["describe" $resource_type $name]
@@ -171,9 +192,29 @@ def describe_resource [
     # Add show-events flag
     $cmd_args = ($cmd_args | append $"--show-events=($show_events)")
 
-    # Build and execute the command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "describe_resource"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          show_events: $show_events
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -183,7 +224,7 @@ def describe_resource [
         name: $name
         namespace: $namespace
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       description: $result
       events_included: $show_events
     } | to json
@@ -206,6 +247,7 @@ def describe_multiple [
   label_selector: string
   namespace?: string
   all_namespaces: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["describe" $resource_type "--selector" $label_selector]
@@ -217,9 +259,29 @@ def describe_multiple [
       $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
     }
 
-    # Build and execute the command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "describe_multiple"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          label_selector: $label_selector
+          namespace: $namespace
+          all_namespaces: $all_namespaces
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -230,7 +292,7 @@ def describe_multiple [
         namespace: $namespace
         all_namespaces: $all_namespaces
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       description: $result
     } | to json
   } catch {|error|
@@ -251,6 +313,7 @@ def get_resource_events [
   resource_type: string
   name: string
   namespace?: string
+  delegate_to?: string
 ] {
   try {
     mut events_cmd_args = ["get" "events"]
@@ -263,9 +326,29 @@ def get_resource_events [
     # Filter events by involved object
     $events_cmd_args = ($events_cmd_args | append "--field-selector" | append $"involvedObject.name=($name)")
 
-    # Build and execute the events command
+    # Build command
     let full_events_cmd = (["kubectl"] | append $events_cmd_args)
-    print $"Executing: ($full_events_cmd | str join ' ')"
+    let cmd_string = $full_events_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "get_resource_events"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+        note: "This function normally executes multiple commands for comprehensive event retrieval"
+      } | to json)
+    }
+    
+    # Execute the events command
+    print $"Executing: ($cmd_string)"
     let events_result = run-external ...$full_events_cmd
 
     # Also get basic resource info for context
@@ -314,6 +397,7 @@ def resource_health_check [
   resource_type: string
   name: string
   namespace?: string
+  delegate_to?: string
 ] {
   try {
     # Get basic resource info
@@ -322,9 +406,29 @@ def resource_health_check [
       $get_cmd_args = ($get_cmd_args | append "--namespace" | append $namespace)
     }
 
-    # Build and execute the get command
+    # Build command
     let full_get_cmd = (["kubectl"] | append $get_cmd_args)
-    print $"Executing: ($full_get_cmd | str join ' ')"
+    let cmd_string = $full_get_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "resource_health_check"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+        note: "This function normally performs comprehensive analysis and executes multiple commands"
+      } | to json)
+    }
+    
+    # Execute the get command
+    print $"Executing: ($cmd_string)"
     let resource_info = run-external ...$full_get_cmd | from json
 
     # Build health status based on resource type

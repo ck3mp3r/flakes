@@ -22,6 +22,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Reason for cordoning the node"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["node_name"]
       }
@@ -35,6 +39,10 @@ def "main list-tools" [] {
           node_name: {
             type: "string"
             description: "Name of the node to uncordon (mandatory for safety)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["node_name"]
@@ -80,6 +88,10 @@ def "main list-tools" [] {
             description: "Show what would be drained without actually doing it"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["node_name"]
       }
@@ -108,6 +120,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Overwrite existing taint with same key"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["node_name"]
@@ -138,6 +154,10 @@ def "main list-tools" [] {
             description: "Include allocatable resources"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["node_name"]
       }
@@ -167,6 +187,10 @@ def "main list-tools" [] {
             enum: ["wide", "json", "yaml"]
             default: "wide"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -184,13 +208,15 @@ def "main call-tool" [
     "cordon_node" => {
       let node_name = $parsed_args.node_name
       let reason = $parsed_args.reason?
+      let delegate_to = $parsed_args.delegate_to?
 
-      cordon_node $node_name $reason
+      cordon_node $node_name $reason $delegate_to
     }
     "uncordon_node" => {
       let node_name = $parsed_args.node_name
+      let delegate_to = $parsed_args.delegate_to?
 
-      uncordon_node $node_name
+      uncordon_node $node_name $delegate_to
     }
     "drain_node" => {
       let node_name = $parsed_args.node_name
@@ -200,32 +226,36 @@ def "main call-tool" [
       let grace_period = $parsed_args.grace_period? | default -1
       let timeout = $parsed_args.timeout? | default "0s"
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      drain_node $node_name $force $ignore_daemonsets $delete_emptydir_data $grace_period $timeout $dry_run
+      drain_node $node_name $force $ignore_daemonsets $delete_emptydir_data $grace_period $timeout $dry_run $delegate_to
     }
     "taint_node" => {
       let node_name = $parsed_args.node_name
       let taints = $parsed_args.taints?
       let remove_taints = $parsed_args.remove_taints?
       let overwrite = $parsed_args.overwrite? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      taint_node $node_name $taints $remove_taints $overwrite
+      taint_node $node_name $taints $remove_taints $overwrite $delegate_to
     }
     "get_node_info" => {
       let node_name = $parsed_args.node_name
       let show_labels = $parsed_args.show_labels? | default true
       let show_taints = $parsed_args.show_taints? | default true
       let show_allocatable = $parsed_args.show_allocatable? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_node_info $node_name $show_labels $show_taints $show_allocatable
+      get_node_info $node_name $show_labels $show_taints $show_allocatable $delegate_to
     }
     "list_nodes" => {
       let show_labels = $parsed_args.show_labels? | default false
       let label_selector = $parsed_args.label_selector?
       let field_selector = $parsed_args.field_selector?
       let output = $parsed_args.output? | default "wide"
+      let delegate_to = $parsed_args.delegate_to?
 
-      list_nodes $show_labels $label_selector $field_selector $output
+      list_nodes $show_labels $label_selector $field_selector $output $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -237,6 +267,7 @@ def "main call-tool" [
 def cordon_node [
   node_name: string
   reason?: string
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["cordon" $node_name]
@@ -245,9 +276,27 @@ def cordon_node [
       $cmd_args = ($cmd_args | append "--reason" | append $reason)
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "cordon_node"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          node_name: $node_name
+          reason: $reason
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -255,7 +304,7 @@ def cordon_node [
       operation: "cordon"
       node_name: $node_name
       reason: $reason
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Node '($node_name)' has been cordoned (marked unschedulable)"
       warning: "New pods will not be scheduled on this node until uncordoned"
@@ -277,6 +326,7 @@ def cordon_node [
 # Uncordon a node (mark as schedulable)
 def uncordon_node [
   node_name: string
+  delegate_to?: string
 ] {
   try {
     let cmd_args = ["uncordon" $node_name]
@@ -318,6 +368,7 @@ def drain_node [
   grace_period: int = -1
   timeout: string = "0s"
   dry_run: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["drain" $node_name]
@@ -394,6 +445,7 @@ def taint_node [
   taints?: any
   remove_taints?: any
   overwrite: bool = false
+  delegate_to?: string
 ] {
   if $taints == null and $remove_taints == null {
     return ({
@@ -463,6 +515,7 @@ def get_node_info [
   show_labels: bool = true
   show_taints: bool = true
   show_allocatable: bool = true
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["get" "node" $node_name "--output" "json"]
@@ -513,6 +566,7 @@ def list_nodes [
   label_selector?: string
   field_selector?: string
   output: string = "wide"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["get" "nodes"]

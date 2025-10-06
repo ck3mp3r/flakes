@@ -20,6 +20,10 @@ def "main list-tools" [] {
             enum: ["json", "yaml", "short"]
             default: "json"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -34,6 +38,10 @@ def "main list-tools" [] {
             description: "Output format"
             enum: ["json", "yaml", "short"]
             default: "json"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -50,6 +58,10 @@ def "main list-tools" [] {
             enum: ["json", "yaml", "short"]
             default: "json"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -58,7 +70,12 @@ def "main list-tools" [] {
       description: "Show concise version information for both client and server"
       input_schema: {
         type: "object"
-        properties: {}
+        properties: {
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
+        }
       }
     }
     {
@@ -71,6 +88,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Show detailed compatibility analysis"
             default: true
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -91,6 +112,10 @@ def "main list-tools" [] {
             description: "Include system component versions"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -107,27 +132,33 @@ def "main call-tool" [
   match $tool_name {
     "version_client" => {
       let output = $parsed_args.output? | default "json"
-      version_client $output
+      let delegate_to = $parsed_args.delegate_to?
+      version_client $output $delegate_to
     }
     "version_server" => {
       let output = $parsed_args.output? | default "json"
-      version_server $output
+      let delegate_to = $parsed_args.delegate_to?
+      version_server $output $delegate_to
     }
     "version_both" => {
       let output = $parsed_args.output? | default "json"
-      version_both $output
+      let delegate_to = $parsed_args.delegate_to?
+      version_both $output $delegate_to
     }
     "version_short" => {
-      version_short
+      let delegate_to = $parsed_args.delegate_to?
+      version_short $delegate_to
     }
     "version_compatibility" => {
       let show_details = $parsed_args.show_details? | default true
-      version_compatibility $show_details
+      let delegate_to = $parsed_args.delegate_to?
+      version_compatibility $show_details $delegate_to
     }
     "cluster_version_info" => {
       let include_nodes = $parsed_args.include_nodes? | default false
       let include_components = $parsed_args.include_components? | default false
-      cluster_version_info $include_nodes $include_components
+      let delegate_to = $parsed_args.delegate_to?
+      cluster_version_info $include_nodes $include_components $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -138,6 +169,7 @@ def "main call-tool" [
 # Get kubectl client version
 def version_client [
   output: string = "json"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["version" "--client=true"]
@@ -148,9 +180,26 @@ def version_client [
       $cmd_args = ($cmd_args | append "--output" | append $output)
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "version_client"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          output: $output
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     let parsed_result = if $output == "json" {
@@ -163,7 +212,7 @@ def version_client [
       type: "client_version_result"
       operation: "version_client"
       output_format: $output
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       client_version: $parsed_result
       message: "kubectl client version information"
     } | to json
@@ -182,6 +231,7 @@ def version_client [
 # Get Kubernetes server version
 def version_server [
   output: string = "json"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["version" "--client=false"]
@@ -192,9 +242,26 @@ def version_server [
       $cmd_args = ($cmd_args | append "--output" | append $output)
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "version_server"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          output: $output
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     let parsed_result = if $output == "json" {
@@ -207,7 +274,7 @@ def version_server [
       type: "server_version_result"
       operation: "version_server"
       output_format: $output
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       server_version: $parsed_result
       message: "Kubernetes server version information"
     } | to json
@@ -228,6 +295,7 @@ def version_server [
 # Get both client and server versions
 def version_both [
   output: string = "json"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["version"]
@@ -238,9 +306,26 @@ def version_both [
       $cmd_args = ($cmd_args | append "--output" | append $output)
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "version_both"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          output: $output
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     let parsed_result = if $output == "json" {
@@ -253,7 +338,7 @@ def version_both [
       type: "version_both_result"
       operation: "version_both"
       output_format: $output
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       version_info: $parsed_result
       message: "Both client and server version information"
     } | to json
@@ -271,17 +356,34 @@ def version_both [
 }
 
 # Get short version information
-def version_short [] {
+def version_short [
+  delegate_to?: string
+] {
   try {
     let cmd_args = ["version" "--short"]
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "version_short"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {}
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     # Parse the short output to extract versions
-    let lines = $result | str split "\n" | where {|line| ($line | str length) > 0}
+    let lines = $result | lines | where {|line| ($line | str length) > 0}
     mut client_version = ""
     mut server_version = ""
 
@@ -296,7 +398,7 @@ def version_short [] {
     {
       type: "version_short_result"
       operation: "version_short"
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       client_version: $client_version
       server_version: $server_version
       raw_output: $result
@@ -318,12 +420,30 @@ def version_short [] {
 # Check version compatibility between client and server
 def version_compatibility [
   show_details: bool = true
+  delegate_to?: string
 ] {
   try {
     # Get both versions in JSON format for analysis
     let version_cmd = ["version" "--output" "json"]
     let full_cmd = (["kubectl"] | append $version_cmd)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "version_compatibility"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          show_details: $show_details
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let version_result = run-external ...$full_cmd
 
     let version_info = try { $version_result | from json } catch { 
@@ -339,8 +459,8 @@ def version_compatibility [
     let server_version = $version_info.serverVersion?.gitVersion? | default "unknown"
 
     # Basic compatibility analysis (simplified)
-    let client_parts = $client_version | str replace "v" "" | str split "."
-    let server_parts = $server_version | str replace "v" "" | str split "."
+    let client_parts = $client_version | str replace "v" "" | split row "."
+    let server_parts = $server_version | str replace "v" "" | split row "."
 
     mut compatibility_status = "unknown"
     mut compatibility_notes = []
@@ -394,7 +514,7 @@ def version_compatibility [
     {
       type: "version_compatibility_result"
       operation: "version_compatibility"
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       compatibility_status: $compatibility_status
       compatibility_notes: $compatibility_notes
       versions: {
@@ -421,12 +541,31 @@ def version_compatibility [
 def cluster_version_info [
   include_nodes: bool = false
   include_components: bool = false
+  delegate_to?: string
 ] {
   try {
     # Get basic version info
     let version_cmd = ["version" "--output" "json"]
     let version_full_cmd = (["kubectl"] | append $version_cmd)
-    print $"Executing: ($version_full_cmd | str join ' ')"
+    let version_cmd_string = $version_full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "cluster_version_info"
+        command: $version_cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          include_nodes: $include_nodes
+          include_components: $include_components
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($version_cmd_string)"
     let version_result = run-external ...$version_full_cmd
 
     let version_info = try { $version_result | from json } catch { $version_result }
@@ -438,10 +577,11 @@ def cluster_version_info [
 
     # Get node information if requested
     if $include_nodes {
-      try {
+      let node_info = try {
         let nodes_cmd = ["get" "nodes" "--output" "json"]
         let nodes_full_cmd = (["kubectl"] | append $nodes_cmd)
-        print $"Executing: ($nodes_full_cmd | str join ' ')"
+        let nodes_cmd_string = $nodes_full_cmd | str join " "
+        print $"Executing: ($nodes_cmd_string)"
         let nodes_result = run-external ...$nodes_full_cmd | from json
 
         let node_versions = $nodes_result.items | each {|node|
@@ -454,32 +594,35 @@ def cluster_version_info [
             kernel_version: $node.status.nodeInfo.kernelVersion
           }
         }
-
-        $cluster_info = ($cluster_info | insert node_versions $node_versions)
+        {node_versions: $node_versions}
       } catch {
-        $cluster_info = ($cluster_info | insert node_versions_error "Could not retrieve node version information")
+        {node_versions_error: "Could not retrieve node version information"}
       }
+      
+      $cluster_info = ($cluster_info | merge $node_info)
     }
 
     # Get component information if requested
     if $include_components {
-      try {
+      let component_info = try {
         let components_cmd = ["get" "componentstatuses" "--output" "json"]
         let components_full_cmd = (["kubectl"] | append $components_cmd)
-        print $"Executing: ($components_full_cmd | str join ' ')"
+        let components_cmd_string = $components_full_cmd | str join " "
+        print $"Executing: ($components_cmd_string)"
         let components_result = run-external ...$components_full_cmd | from json
 
-        let component_info = $components_result.items | each {|comp|
+        let comp_status = $components_result.items | each {|comp|
           {
             name: $comp.metadata.name
             conditions: $comp.conditions
           }
         }
-
-        $cluster_info = ($cluster_info | insert component_status $component_info)
+        {component_status: $comp_status}
       } catch {
-        $cluster_info = ($cluster_info | insert component_status_error "Could not retrieve component status information")
+        {component_status_error: "Could not retrieve component status information"}
       }
+      
+      $cluster_info = ($cluster_info | merge $component_info)
     }
 
     {
@@ -489,7 +632,7 @@ def cluster_version_info [
         include_nodes: $include_nodes
         include_components: $include_components
       }
-      commands_executed: [($version_full_cmd | str join " ")]
+      commands_executed: [$version_cmd_string]
       cluster_version_info: $cluster_info
       message: "Comprehensive cluster version information"
     } | to json

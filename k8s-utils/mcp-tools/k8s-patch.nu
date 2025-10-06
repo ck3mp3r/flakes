@@ -44,6 +44,10 @@ def "main list-tools" [] {
             description: "Record the command in resource annotations"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -83,6 +87,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Record the command in resource annotations"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "name", "namespace"]
@@ -140,6 +148,10 @@ def "main list-tools" [] {
             description: "Record the command in resource annotations"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -182,6 +194,10 @@ def "main list-tools" [] {
             description: "Perform dry run without applying changes"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace", "subresource"]
       }
@@ -205,8 +221,9 @@ def "main call-tool" [
       let patch_file = $parsed_args.patch_file?
       let dry_run = $parsed_args.dry_run? | default false
       let record = $parsed_args.record? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      patch_strategic $resource_type $name $namespace $patch $patch_file $dry_run $record
+      patch_strategic $resource_type $name $namespace $patch $patch_file $dry_run $record $delegate_to
     }
     "patch_merge" => {
       let resource_type = $parsed_args.resource_type
@@ -216,8 +233,9 @@ def "main call-tool" [
       let patch_file = $parsed_args.patch_file?
       let dry_run = $parsed_args.dry_run? | default false
       let record = $parsed_args.record? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      patch_merge $resource_type $name $namespace $patch $patch_file $dry_run $record
+      patch_merge $resource_type $name $namespace $patch $patch_file $dry_run $record $delegate_to
     }
     "patch_json" => {
       let resource_type = $parsed_args.resource_type
@@ -227,8 +245,9 @@ def "main call-tool" [
       let patch_file = $parsed_args.patch_file?
       let dry_run = $parsed_args.dry_run? | default false
       let record = $parsed_args.record? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      patch_json $resource_type $name $namespace $patch $patch_file $dry_run $record
+      patch_json $resource_type $name $namespace $patch $patch_file $dry_run $record $delegate_to
     }
     "patch_subresource" => {
       let resource_type = $parsed_args.resource_type
@@ -238,8 +257,9 @@ def "main call-tool" [
       let patch = $parsed_args.patch?
       let patch_type = $parsed_args.patch_type? | default "strategic"
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      patch_subresource $resource_type $name $namespace $subresource $patch $patch_type $dry_run
+      patch_subresource $resource_type $name $namespace $subresource $patch $patch_type $dry_run $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -256,6 +276,7 @@ def patch_strategic [
   patch_file?: string
   dry_run: bool = false
   record: bool = false
+  delegate_to?: string
 ] {
   if $patch == null and $patch_file == null {
     return (
@@ -294,9 +315,32 @@ def patch_strategic [
       $cmd_args = ($cmd_args | append "--record")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "patch_strategic"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          patch: $patch
+          patch_file: $patch_file
+          dry_run: $dry_run
+          record: $record
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -312,7 +356,7 @@ def patch_strategic [
         dry_run: $dry_run
         record: $record
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Strategic merge patch applied to ($resource_type) '($name)'"
     } | to json
@@ -345,6 +389,7 @@ def patch_merge [
   patch_file?: string
   dry_run: bool = false
   record: bool = false
+  delegate_to?: string
 ] {
   if $patch == null and $patch_file == null {
     return (
@@ -383,9 +428,32 @@ def patch_merge [
       $cmd_args = ($cmd_args | append "--record")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "patch_merge"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          patch: $patch
+          patch_file: $patch_file
+          dry_run: $dry_run
+          record: $record
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -401,7 +469,7 @@ def patch_merge [
         dry_run: $dry_run
         record: $record
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"JSON merge patch applied to ($resource_type) '($name)'"
     } | to json
@@ -434,6 +502,7 @@ def patch_json [
   patch_file?: string
   dry_run: bool = false
   record: bool = false
+  delegate_to?: string
 ] {
   if $patch == null and $patch_file == null {
     return (
@@ -472,9 +541,32 @@ def patch_json [
       $cmd_args = ($cmd_args | append "--record")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "patch_json"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          patch: $patch
+          patch_file: $patch_file
+          dry_run: $dry_run
+          record: $record
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -490,7 +582,7 @@ def patch_json [
         dry_run: $dry_run
         record: $record
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"JSON patch (RFC 6902) applied to ($resource_type) '($name)'"
     } | to json
@@ -524,6 +616,7 @@ def patch_subresource [
   patch?: any
   patch_type: string = "strategic"
   dry_run: bool = false
+  delegate_to?: string
 ] {
   if $patch == null {
     return (
@@ -542,9 +635,32 @@ def patch_subresource [
       $cmd_args = ($cmd_args | append "--dry-run=client")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "patch_subresource"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          subresource: $subresource
+          patch: $patch
+          patch_type: $patch_type
+          dry_run: $dry_run
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -560,7 +676,7 @@ def patch_subresource [
       options: {
         dry_run: $dry_run
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Subresource '($subresource)' patched on ($resource_type) '($name)'"
     } | to json

@@ -40,6 +40,10 @@ def "main list-tools" [] {
             enum: ["json", "yaml"]
             default: "yaml"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -62,6 +66,10 @@ def "main list-tools" [] {
             description: "Output format"
             enum: ["name", "wide"]
             default: "wide"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -92,6 +100,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Name of the context to switch to"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["context_name"]
       }
@@ -117,6 +129,10 @@ def "main list-tools" [] {
           namespace: {
             type: "string"
             description: "Default namespace for the context"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["context_name"]
@@ -152,6 +168,10 @@ def "main list-tools" [] {
           proxy_url: {
             type: "string"
             description: "Proxy URL for the cluster"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["cluster_name"]
@@ -208,6 +228,10 @@ def "main list-tools" [] {
             items: {type: "string"}
             description: "Arguments for exec command"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["user_name"]
       }
@@ -221,6 +245,10 @@ def "main list-tools" [] {
           context_name: {
             type: "string"
             description: "Name of the context to delete"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["context_name"]
@@ -236,6 +264,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Name of the cluster to delete"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["cluster_name"]
       }
@@ -249,6 +281,10 @@ def "main list-tools" [] {
           user_name: {
             type: "string"
             description: "Name of the user to delete"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["user_name"]
@@ -267,6 +303,10 @@ def "main list-tools" [] {
           new_name: {
             type: "string"
             description: "New name for the context"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["old_name", "new_name"]
@@ -289,15 +329,17 @@ def "main call-tool" [
       let merge = $parsed_args.merge? | default true
       let raw = $parsed_args.raw? | default false
       let output = $parsed_args.output? | default "yaml"
+      let delegate_to = $parsed_args.delegate_to?
 
-      config_view $minify $flatten $merge $raw $output
+      config_view $minify $flatten $merge $raw $output $delegate_to
     }
     "config_current_context" => {
       config_current_context
     }
     "config_get_contexts" => {
       let output = $parsed_args.output? | default "wide"
-      config_get_contexts $output
+      let delegate_to = $parsed_args.delegate_to?
+      config_get_contexts $output $delegate_to
     }
     "config_get_clusters" => {
       config_get_clusters
@@ -372,6 +414,7 @@ def config_view [
   merge: bool = true
   raw: bool = false
   output: string = "yaml"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["config" "view"]
@@ -459,6 +502,7 @@ def config_current_context [] {
 # Get contexts
 def config_get_contexts [
   output: string = "wide"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["config" "get-contexts"]

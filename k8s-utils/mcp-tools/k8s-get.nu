@@ -44,6 +44,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Field selector to filter resources (e.g., 'status.phase=Running')"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type"]
       }
@@ -94,8 +98,9 @@ def "main call-tool" [
       let output_format = $parsed_args.output_format? | default "wide"
       let label_selector = $parsed_args.label_selector?
       let field_selector = $parsed_args.field_selector?
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_resource $resource_type $name $namespace $all_namespaces $output_format $label_selector $field_selector
+      get_resource $resource_type $name $namespace $all_namespaces $output_format $label_selector $field_selector $delegate_to
     }
     "list_resource_types" => {
       let namespaced = $parsed_args.namespaced?
@@ -120,6 +125,7 @@ def get_resource [
   output_format: string = "wide"
   label_selector?: string
   field_selector?: string
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["get" $resource_type]
@@ -148,20 +154,43 @@ def get_resource [
       $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
     }
 
-    # Build and execute the command
+    # Build the command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
-    let result = run-external ...$full_cmd
-
-    if $output_format in ["json" "yaml"] {
-      $result
-    } else {
+    let cmd_string = ($full_cmd | str join " ")
+    
+    if $delegate_to != null {
+      # Return command for delegation
       {
-        type: "kubectl_output"
-        resource_type: $resource_type
-        command: ($full_cmd | str join " ")
-        output: $result
+        type: "kubectl_command_for_delegation"
+        operation: "get_resource"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          all_namespaces: $all_namespaces
+          output_format: $output_format
+          label_selector: $label_selector
+          field_selector: $field_selector
+        }
       } | to json
+    } else {
+      # Execute directly (current behavior)
+      print $"Executing: ($cmd_string)"
+      let result = run-external ...$full_cmd
+
+      if $output_format in ["json" "yaml"] {
+        $result
+      } else {
+        {
+          type: "kubectl_output"
+          resource_type: $resource_type
+          command: $cmd_string
+          output: $result
+        } | to json
+      }
     }
   } catch {|error|
     {

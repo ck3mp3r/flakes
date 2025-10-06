@@ -49,6 +49,10 @@ def "main list-tools" [] {
             description: "Show shortnames column"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -67,6 +71,10 @@ def "main list-tools" [] {
           group: {
             type: "string"
             description: "Filter by specific API group"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -96,6 +104,10 @@ def "main list-tools" [] {
             enum: ["plaintext", "plaintext-openapiv2"]
             default: "plaintext"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource"]
       }
@@ -124,6 +136,10 @@ def "main list-tools" [] {
             description: "Show resource categories"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource"]
       }
@@ -142,6 +158,10 @@ def "main list-tools" [] {
           output_directory: {
             type: "string"
             description: "Directory to save cluster dump (only used with dump=true)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -162,6 +182,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Also show client version"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -186,13 +210,15 @@ def "main call-tool" [
       let show_kind = $parsed_args.show_kind? | default true
       let show_shortnames = $parsed_args.show_shortnames? | default true
 
-      api_resources $api_group $namespaced $verbs $output $sort_by $show_kind $show_shortnames
+      let delegate_to = $parsed_args.delegate_to?
+      api_resources $api_group $namespaced $verbs $output $sort_by $show_kind $show_shortnames $delegate_to
     }
     "api_versions" => {
       let output = $parsed_args.output? | default "wide"
       let group = $parsed_args.group?
 
-      api_versions $output $group
+      let delegate_to = $parsed_args.delegate_to?
+      api_versions $output $group $delegate_to
     }
     "explain_resource" => {
       let resource = $parsed_args.resource
@@ -200,7 +226,8 @@ def "main call-tool" [
       let recursive = $parsed_args.recursive? | default false
       let output = $parsed_args.output? | default "plaintext"
 
-      explain_resource $resource $api_version $recursive $output
+      let delegate_to = $parsed_args.delegate_to?
+      explain_resource $resource $api_version $recursive $output $delegate_to
     }
     "api_resource_info" => {
       let resource = $parsed_args.resource
@@ -237,6 +264,7 @@ def api_resources [
   sort_by: string = "name"
   show_kind: bool = true
   show_shortnames: bool = true
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["api-resources"]
@@ -312,6 +340,7 @@ def api_resources [
 def api_versions [
   output: string = "wide"
   group?: string
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["api-versions"]
@@ -363,6 +392,7 @@ def explain_resource [
   api_version?: string
   recursive: bool = false
   output: string = "plaintext"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["explain" $resource]

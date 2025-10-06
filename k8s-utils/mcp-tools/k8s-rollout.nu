@@ -35,6 +35,10 @@ def "main list-tools" [] {
             type: "integer"
             description: "Limit the number of revisions to show"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -57,6 +61,10 @@ def "main list-tools" [] {
           namespace: {
             type: "string"
             description: "Namespace of the resource (mandatory for safety)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "name", "namespace"]
@@ -81,6 +89,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Namespace of the resource (mandatory for safety)"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -103,6 +115,10 @@ def "main list-tools" [] {
           namespace: {
             type: "string"
             description: "Namespace of the resource (mandatory for safety)"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "name", "namespace"]
@@ -136,6 +152,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Timeout for waiting (e.g., '10m', '5m')"
             default: "10m"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "name", "namespace"]
@@ -174,6 +194,10 @@ def "main list-tools" [] {
             description: "Timeout for waiting (e.g., '10m', '5m')"
             default: "10m"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["resource_type", "name", "namespace"]
       }
@@ -195,28 +219,33 @@ def "main call-tool" [
       let namespace = $parsed_args.namespace
       let revision = $parsed_args.revision?
       let limit = $parsed_args.limit?
+      let delegate_to = $parsed_args.delegate_to?
 
-      rollout_history $resource_type $name $namespace $revision $limit
+      rollout_history $resource_type $name $namespace $revision $limit $delegate_to
     }
     "rollout_status" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace
-      rollout_status $resource_type $name $namespace
+      let delegate_to = $parsed_args.delegate_to?
+      
+      rollout_status $resource_type $name $namespace $delegate_to
     }
     "rollout_pause" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace
+      let delegate_to = $parsed_args.delegate_to?
 
-      rollout_pause $resource_type $name $namespace
+      rollout_pause $resource_type $name $namespace $delegate_to
     }
     "rollout_resume" => {
       let resource_type = $parsed_args.resource_type
       let name = $parsed_args.name
       let namespace = $parsed_args.namespace
+      let delegate_to = $parsed_args.delegate_to?
 
-      rollout_resume $resource_type $name $namespace
+      rollout_resume $resource_type $name $namespace $delegate_to
     }
     "rollout_restart" => {
       let resource_type = $parsed_args.resource_type
@@ -224,8 +253,9 @@ def "main call-tool" [
       let namespace = $parsed_args.namespace
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "10m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      rollout_restart $resource_type $name $namespace $wait $timeout
+      rollout_restart $resource_type $name $namespace $wait $timeout $delegate_to
     }
     "rollout_undo" => {
       let resource_type = $parsed_args.resource_type
@@ -234,8 +264,9 @@ def "main call-tool" [
       let to_revision = $parsed_args.to_revision?
       let wait = $parsed_args.wait? | default false
       let timeout = $parsed_args.timeout? | default "10m"
+      let delegate_to = $parsed_args.delegate_to?
 
-      rollout_undo $resource_type $name $namespace $to_revision $wait $timeout
+      rollout_undo $resource_type $name $namespace $to_revision $wait $timeout $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -250,6 +281,7 @@ def rollout_history [
   namespace: string
   revision?: int
   limit?: int
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["rollout" "history" $"($resource_type)/($name)" "--namespace" $namespace]
@@ -262,9 +294,30 @@ def rollout_history [
       $cmd_args = ($cmd_args | append $"--limit=($limit)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_history"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          revision: $revision
+          limit: $limit
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -279,7 +332,7 @@ def rollout_history [
         revision: $revision
         limit: $limit
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Rollout history for ($resource_type) '($name)'"
     } | to json
@@ -307,13 +360,33 @@ def rollout_status [
   resource_type: string
   name: string
   namespace: string
+  delegate_to?: string
 ] {
   try {
     let cmd_args = ["rollout" "status" $"($resource_type)/($name)" "--namespace" $namespace]
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_status"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -324,7 +397,7 @@ def rollout_status [
         name: $name
         namespace: $namespace
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Rollout status for ($resource_type) '($name)'"
     } | to json
@@ -351,13 +424,33 @@ def rollout_pause [
   resource_type: string
   name: string
   namespace: string
+  delegate_to?: string
 ] {
   try {
     let cmd_args = ["rollout" "pause" $"($resource_type)/($name)" "--namespace" $namespace]
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_pause"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -368,7 +461,7 @@ def rollout_pause [
         name: $name
         namespace: $namespace
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Paused rollout for ($resource_type) '($name)' - no further updates will occur until resumed"
       warning: "The rollout is now paused. Use rollout_resume to continue updates."
@@ -397,13 +490,33 @@ def rollout_resume [
   resource_type: string
   name: string
   namespace: string
+  delegate_to?: string
 ] {
   try {
     let cmd_args = ["rollout" "resume" $"($resource_type)/($name)" "--namespace" $namespace]
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_resume"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -414,7 +527,7 @@ def rollout_resume [
         name: $name
         namespace: $namespace
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Resumed rollout for ($resource_type) '($name)' - updates will now continue"
       note: "The rollout is now active. Monitor with rollout_status to track progress."
@@ -445,6 +558,7 @@ def rollout_restart [
   namespace: string
   wait: bool = false
   timeout: string = "10m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["rollout" "restart" $"($resource_type)/($name)" "--namespace" $namespace]
@@ -453,9 +567,30 @@ def rollout_restart [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_restart"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          wait: $wait
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -470,7 +605,7 @@ def rollout_restart [
         wait: $wait
         timeout: $timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Restarted rollout for ($resource_type) '($name)' - all pods will be recreated"
       warning: "This operation causes service disruption as all pods are restarted"
@@ -502,6 +637,7 @@ def rollout_undo [
   to_revision?: int
   wait: bool = false
   timeout: string = "10m"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["rollout" "undo" $"($resource_type)/($name)" "--namespace" $namespace]
@@ -514,9 +650,31 @@ def rollout_undo [
       $cmd_args = ($cmd_args | append "--wait=true" | append $"--timeout=($timeout)")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "rollout_undo"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          to_revision: $to_revision
+          wait: $wait
+          timeout: $timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -532,7 +690,7 @@ def rollout_undo [
         wait: $wait
         timeout: $timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: (if $to_revision != null { 
         $"Rolled back ($resource_type) '($name)' to revision ($to_revision)" 

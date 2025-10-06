@@ -48,6 +48,10 @@ def "main list-tools" [] {
             enum: ["wide", "json", "yaml", "custom"]
             default: "wide"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -79,6 +83,10 @@ def "main list-tools" [] {
             type: "integer"
             description: "Maximum number of events to return"
             default: 50
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["resource_type", "resource_name"]
@@ -116,6 +124,10 @@ def "main list-tools" [] {
             type: "integer"
             description: "Maximum number of events to capture"
             default: 100
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -174,6 +186,10 @@ def "main list-tools" [] {
             description: "Maximum number of events to return"
             default: 100
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -208,6 +224,10 @@ def "main list-tools" [] {
             description: "Include Warning events in summary"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -237,6 +257,10 @@ def "main list-tools" [] {
             description: "Time window to consider"
             default: "1h"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -259,8 +283,9 @@ def "main call-tool" [
       let limit = $parsed_args.limit? | default 100
       let since = $parsed_args.since?
       let output = $parsed_args.output? | default "wide"
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_events $namespace $all_namespaces $field_selector $sort_by $limit $since $output
+      get_events $namespace $all_namespaces $field_selector $sort_by $limit $since $output $delegate_to
     }
     "get_events_for_object" => {
       let resource_type = $parsed_args.resource_type
@@ -268,8 +293,9 @@ def "main call-tool" [
       let namespace = $parsed_args.namespace?
       let sort_by = $parsed_args.sort_by? | default "lastTimestamp"
       let limit = $parsed_args.limit? | default 50
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_events_for_object $resource_type $resource_name $namespace $sort_by $limit
+      get_events_for_object $resource_type $resource_name $namespace $sort_by $limit $delegate_to
     }
     "watch_events" => {
       let namespace = $parsed_args.namespace?
@@ -278,8 +304,9 @@ def "main call-tool" [
       let resource_version = $parsed_args.resource_version?
       let timeout = $parsed_args.timeout? | default "5m"
       let max_events = $parsed_args.max_events? | default 100
+      let delegate_to = $parsed_args.delegate_to?
 
-      watch_events $namespace $all_namespaces $field_selector $resource_version $timeout $max_events
+      watch_events $namespace $all_namespaces $field_selector $resource_version $timeout $max_events $delegate_to
     }
     "filter_events" => {
       let namespace = $parsed_args.namespace?
@@ -293,8 +320,9 @@ def "main call-tool" [
       let min_count = $parsed_args.min_count?
       let sort_by = $parsed_args.sort_by? | default "lastTimestamp"
       let limit = $parsed_args.limit? | default 100
+      let delegate_to = $parsed_args.delegate_to?
 
-      filter_events $namespace $event_type $reason $involved_object_kind $involved_object_name $message_contains $since $until $min_count $sort_by $limit
+      filter_events $namespace $event_type $reason $involved_object_kind $involved_object_name $message_contains $since $until $min_count $sort_by $limit $delegate_to
     }
     "events_summary" => {
       let namespace = $parsed_args.namespace?
@@ -302,16 +330,18 @@ def "main call-tool" [
       let group_by = $parsed_args.group_by? | default "reason"
       let include_normal = $parsed_args.include_normal? | default true
       let include_warning = $parsed_args.include_warning? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      events_summary $namespace $time_window $group_by $include_normal $include_warning
+      events_summary $namespace $time_window $group_by $include_normal $include_warning $delegate_to
     }
     "top_events" => {
       let namespace = $parsed_args.namespace?
       let metric = $parsed_args.metric? | default "count"
       let limit = $parsed_args.limit? | default 10
       let time_window = $parsed_args.time_window? | default "1h"
+      let delegate_to = $parsed_args.delegate_to?
 
-      top_events $namespace $metric $limit $time_window
+      top_events $namespace $metric $limit $time_window $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -328,6 +358,7 @@ def get_events [
   limit: int = 100
   since?: string
   output: string = "wide"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["get" "events"]
@@ -361,9 +392,32 @@ def get_events [
       # For now, we'll note it in the response
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "get_events"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          namespace: $namespace
+          all_namespaces: $all_namespaces
+          field_selector: $field_selector
+          sort_by: $sort_by
+          limit: $limit
+          since: $since
+          output: $output
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -377,7 +431,7 @@ def get_events [
         since: $since
       }
       output_format: $output
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       events: $result
       note: (if $since != null { $"Time filtering with 'since: ($since)' applied to results" } else { null })
     } | to json
@@ -402,6 +456,7 @@ def get_events_for_object [
   namespace?: string
   sort_by: string = "lastTimestamp"
   limit: int = 50
+  delegate_to?: string
 ] {
   try {
     let field_selector = $"involvedObject.name=($resource_name),involvedObject.kind=($resource_type)"
@@ -462,6 +517,7 @@ def watch_events [
   resource_version?: string
   timeout: string = "5m"
   max_events: int = 100
+
 ] {
   try {
     mut cmd_args = ["get" "events" "--watch" "--output" "json"]
@@ -533,6 +589,7 @@ def filter_events [
   min_count?: int
   sort_by: string = "lastTimestamp"
   limit: int = 100
+
 ] {
   try {
     # First get all events in JSON format for processing
@@ -643,6 +700,7 @@ def events_summary [
   group_by: string = "reason"
   include_normal: bool = true
   include_warning: bool = true
+
 ] {
   try {
     # Get events for analysis
@@ -734,6 +792,7 @@ def top_events [
   metric: string = "count"
   limit: int = 10
   time_window: string = "1h"
+
 ] {
   try {
     # Get events for analysis

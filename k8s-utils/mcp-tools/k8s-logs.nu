@@ -62,6 +62,10 @@ def "main list-tools" [] {
             type: "integer"
             description: "Maximum bytes to return"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["name"]
       }
@@ -113,6 +117,10 @@ def "main list-tools" [] {
             description: "Prefix lines with pod name"
             default: true
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["selector"]
       }
@@ -154,6 +162,10 @@ def "main list-tools" [] {
             description: "Maximum concurrent requests"
             default: 5
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["deployment_name"]
       }
@@ -181,8 +193,9 @@ def "main call-tool" [
       let timestamps = $parsed_args.timestamps? | default false
       let prefix = $parsed_args.prefix? | default false
       let limit_bytes = $parsed_args.limit_bytes?
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_logs $name $namespace $container $resource_type $previous $since $since_time $tail $timestamps $prefix $limit_bytes
+      get_logs $name $namespace $container $resource_type $previous $since $since_time $tail $timestamps $prefix $limit_bytes $delegate_to
     }
     "get_logs_selector" => {
       let selector = $parsed_args.selector
@@ -194,8 +207,9 @@ def "main call-tool" [
       let tail = $parsed_args.tail?
       let timestamps = $parsed_args.timestamps? | default false
       let prefix = $parsed_args.prefix? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_logs_selector $selector $namespace $all_containers $all_pods $max_log_requests $since $tail $timestamps $prefix
+      get_logs_selector $selector $namespace $all_containers $all_pods $max_log_requests $since $tail $timestamps $prefix $delegate_to
     }
     "get_logs_deployment" => {
       let deployment_name = $parsed_args.deployment_name
@@ -205,8 +219,9 @@ def "main call-tool" [
       let tail = $parsed_args.tail?
       let timestamps = $parsed_args.timestamps? | default false
       let max_log_requests = $parsed_args.max_log_requests? | default 5
+      let delegate_to = $parsed_args.delegate_to?
 
-      get_logs_deployment $deployment_name $namespace $all_containers $since $tail $timestamps $max_log_requests
+      get_logs_deployment $deployment_name $namespace $all_containers $since $tail $timestamps $max_log_requests $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -227,6 +242,7 @@ def get_logs [
   timestamps: bool = false
   prefix: bool = false
   limit_bytes?: int
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["logs"]
@@ -240,9 +256,7 @@ def get_logs [
 
     # Add namespace if specified
     if $namespace != null {
-      if $namespace != null {
       $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
-    }
     }
 
     # Add container if specified
@@ -284,9 +298,36 @@ def get_logs [
       $cmd_args = ($cmd_args | append "--limit-bytes" | append ($limit_bytes | into string))
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "get_logs"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          name: $name
+          namespace: $namespace
+          container: $container
+          resource_type: $resource_type
+          previous: $previous
+          since: $since
+          since_time: $since_time
+          tail: $tail
+          timestamps: $timestamps
+          prefix: $prefix
+          limit_bytes: $limit_bytes
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -306,7 +347,7 @@ def get_logs [
         prefix: $prefix
         limit_bytes: $limit_bytes
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       logs: $result
       log_lines: ($result | lines | length)
     } | to json
@@ -336,6 +377,7 @@ def get_logs_selector [
   tail?: int
   timestamps: bool = false
   prefix: bool = true
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["logs" "--selector" $selector]
@@ -372,9 +414,34 @@ def get_logs_selector [
       $cmd_args = ($cmd_args | append "--prefix")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "get_logs_selector"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          selector: $selector
+          namespace: $namespace
+          all_containers: $all_containers
+          all_pods: $all_pods
+          max_log_requests: $max_log_requests
+          since: $since
+          tail: $tail
+          timestamps: $timestamps
+          prefix: $prefix
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -390,7 +457,7 @@ def get_logs_selector [
         timestamps: $timestamps
         prefix: $prefix
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       logs: $result
       log_lines: ($result | lines | length)
     } | to json
@@ -417,6 +484,7 @@ def get_logs_deployment [
   tail?: int
   timestamps: bool = false
   max_log_requests: int = 5
+  delegate_to?: string
 ] {
   try {
     # Use selector to get logs from deployment pods
@@ -449,9 +517,32 @@ def get_logs_deployment [
     # Always prefix for deployment logs
     $cmd_args = ($cmd_args | append "--prefix")
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "get_logs_deployment"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          deployment_name: $deployment_name
+          namespace: $namespace
+          all_containers: $all_containers
+          since: $since
+          tail: $tail
+          timestamps: $timestamps
+          max_log_requests: $max_log_requests
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -466,7 +557,7 @@ def get_logs_deployment [
         timestamps: $timestamps
         max_log_requests: $max_log_requests
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       logs: $result
       log_lines: ($result | lines | length)
       note: "Logs retrieved from all pods matching deployment label selector"

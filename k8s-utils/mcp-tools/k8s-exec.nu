@@ -46,6 +46,10 @@ def "main list-tools" [] {
             description: "Timeout to wait for pod to be running"
             default: "1m0s"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["name", "namespace", "container", "command"]
       }
@@ -85,6 +89,10 @@ def "main list-tools" [] {
           working_directory: {
             type: "string"
             description: "Working directory for script execution"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["name", "namespace", "container", "script_content"]
@@ -127,6 +135,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Continue if execution fails on some pods"
             default: true
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["selector", "namespace", "container", "command"]
@@ -172,6 +184,10 @@ def "main list-tools" [] {
             type: "string"
             description: "Permissions for chmod operations"
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["name", "namespace", "container", "operation", "path"]
       }
@@ -195,8 +211,9 @@ def "main call-tool" [
       let command = $parsed_args.command
       let quiet = $parsed_args.quiet? | default false
       let pod_running_timeout = $parsed_args.pod_running_timeout? | default "1m0s"
+      let delegate_to = $parsed_args.delegate_to?
 
-      exec_command $resource_type $name $namespace $container $command $quiet $pod_running_timeout
+      exec_command $resource_type $name $namespace $container $command $quiet $pod_running_timeout $delegate_to
     }
     "exec_script" => {
       let resource_type = $parsed_args.resource_type? | default "pod"
@@ -206,8 +223,9 @@ def "main call-tool" [
       let script_content = $parsed_args.script_content
       let interpreter = $parsed_args.interpreter? | default "/bin/bash"
       let working_directory = $parsed_args.working_directory?
+      let delegate_to = $parsed_args.delegate_to?
 
-      exec_script $resource_type $name $namespace $container $script_content $interpreter $working_directory
+      exec_script $resource_type $name $namespace $container $script_content $interpreter $working_directory $delegate_to
     }
     "exec_multiple" => {
       let selector = $parsed_args.selector
@@ -217,8 +235,9 @@ def "main call-tool" [
       let command = $parsed_args.command
       let max_concurrent = $parsed_args.max_concurrent? | default 5
       let continue_on_error = $parsed_args.continue_on_error? | default true
+      let delegate_to = $parsed_args.delegate_to?
 
-      exec_multiple $selector $command $namespace $all_namespaces $container $max_concurrent $continue_on_error
+      exec_multiple $selector $command $namespace $container $all_namespaces $max_concurrent $continue_on_error $delegate_to
     }
     "exec_file_transfer" => {
       let resource_type = $parsed_args.resource_type? | default "pod"
@@ -229,8 +248,9 @@ def "main call-tool" [
       let path = $parsed_args.path
       let content = $parsed_args.content?
       let permissions = $parsed_args.permissions?
+      let delegate_to = $parsed_args.delegate_to?
 
-      exec_file_transfer $resource_type $name $namespace $container $operation $path $content $permissions
+      exec_file_transfer $resource_type $name $namespace $container $operation $path $content $permissions $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -247,6 +267,7 @@ def exec_command [
   command: list<string>
   quiet: bool = false
   pod_running_timeout: string = "1m0s"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["exec"]
@@ -276,9 +297,32 @@ def exec_command [
     $cmd_args = ($cmd_args | append "--")
     $cmd_args = ($cmd_args | append $command)
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "exec_command"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          resource_type: $resource_type
+          name: $name
+          namespace: $namespace
+          container: $container
+          command: $command
+          quiet: $quiet
+          pod_running_timeout: $pod_running_timeout
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -294,7 +338,7 @@ def exec_command [
         quiet: $quiet
         pod_running_timeout: $pod_running_timeout
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       output: $result
     } | to json
   } catch {|error|
@@ -322,6 +366,7 @@ def exec_script [
   script_content: string
   interpreter: string = "/bin/bash"
   working_directory?: string
+  delegate_to?: string
 ] {
   try {
     # Prepare the script execution command
@@ -394,10 +439,11 @@ def exec_multiple [
   selector: string
   command: list<string>
   namespace: string
-  all_namespaces: bool = false
   container: string
+  all_namespaces: bool = false
   max_concurrent: int = 5
   continue_on_error: bool = true
+  delegate_to?: string
 ] {
   try {
     # First, get list of pods matching selector
@@ -441,10 +487,18 @@ def exec_multiple [
         
         if $pod.namespace != null {
           $exec_args = ($exec_args | append "--namespace" | append $pod.namespace)
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
 
         if $container != null {
           $exec_args = ($exec_args | append "--container" | append $container)
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
 
         $exec_args = ($exec_args | append "--")
@@ -460,6 +514,10 @@ def exec_multiple [
           status: "success"
           output: $result
           command: ($full_exec_cmd | str join " ")
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       } catch {|error|
         {
@@ -468,6 +526,10 @@ def exec_multiple [
           status: "error"
           error_message: $error.msg
           command: "failed_to_execute"
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
     }
@@ -515,6 +577,7 @@ def exec_file_transfer [
   path: string
   content?: string
   permissions?: string
+  delegate_to?: string
 ] {
   try {
     let file_command = match $operation {
@@ -523,6 +586,10 @@ def exec_file_transfer [
       "write" => {
         if $content == null {
           error make {msg: "Content required for write operation"}
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         ["sh" "-c" $"echo '($content)' > ($path)"]
       }
@@ -531,6 +598,10 @@ def exec_file_transfer [
       "chmod" => {
         if $permissions == null {
           error make {msg: "Permissions required for chmod operation"}
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         ["chmod" $permissions $path]
       }

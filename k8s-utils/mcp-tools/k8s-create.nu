@@ -37,6 +37,10 @@ def "main list-tools" [] {
             description: "Save configuration for future kubectl apply calls"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["file_path", "namespace"]
       }
@@ -63,6 +67,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Perform dry run without creating"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["name"]
@@ -103,6 +111,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Perform dry run without creating"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["name", "namespace"]
@@ -170,6 +182,10 @@ def "main list-tools" [] {
             description: "Perform dry run without creating"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["name", "namespace"]
       }
@@ -218,6 +234,10 @@ def "main list-tools" [] {
             type: "boolean"
             description: "Save configuration for future kubectl apply calls"
             default: false
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
         required: ["name", "namespace", "image"]
@@ -273,6 +293,10 @@ def "main list-tools" [] {
             description: "Perform dry run without creating"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["name", "namespace"]
       }
@@ -294,16 +318,18 @@ def "main call-tool" [
       let dry_run = $parsed_args.dry_run? | default false
       let validate = $parsed_args.validate? | default true
       let save_config = $parsed_args.save_config? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_from_file $file_path $namespace $dry_run $validate $save_config
+      create_from_file $file_path $namespace $dry_run $validate $save_config $delegate_to
     }
     "create_namespace" => {
       let name = $parsed_args.name
       let labels = $parsed_args.labels?
       let annotations = $parsed_args.annotations?
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_namespace $name $labels $annotations $dry_run
+      create_namespace $name $labels $annotations $dry_run $delegate_to
     }
     "create_configmap" => {
       let name = $parsed_args.name
@@ -313,8 +339,9 @@ def "main call-tool" [
       let from_env_file = $parsed_args.from_env_file?
       let labels = $parsed_args.labels?
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_configmap $name $namespace $from_literal $from_file $from_env_file $labels $dry_run
+      create_configmap $name $namespace $from_literal $from_file $from_env_file $labels $dry_run $delegate_to
     }
     "create_secret" => {
       let name = $parsed_args.name
@@ -330,8 +357,9 @@ def "main call-tool" [
       let tls_key = $parsed_args.tls_key?
       let labels = $parsed_args.labels?
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_secret $name $namespace $secret_type $from_literal $from_file $docker_server $docker_username $docker_password $docker_email $tls_cert $tls_key $labels $dry_run
+      create_secret $name $namespace $secret_type $from_literal $from_file $docker_server $docker_username $docker_password $docker_email $tls_cert $tls_key $labels $dry_run $delegate_to
     }
     "create_deployment" => {
       let name = $parsed_args.name
@@ -343,8 +371,9 @@ def "main call-tool" [
       let labels = $parsed_args.labels?
       let dry_run = $parsed_args.dry_run? | default false
       let save_config = $parsed_args.save_config? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_deployment $name $namespace $image $replicas $port $env_vars $labels $dry_run $save_config
+      create_deployment $name $namespace $image $replicas $port $env_vars $labels $dry_run $save_config $delegate_to
     }
     "create_service" => {
       let name = $parsed_args.name
@@ -355,8 +384,9 @@ def "main call-tool" [
       let external_name = $parsed_args.external_name?
       let labels = $parsed_args.labels?
       let dry_run = $parsed_args.dry_run? | default false
+      let delegate_to = $parsed_args.delegate_to?
 
-      create_service $name $namespace $service_type $selector $ports $external_name $labels $dry_run
+      create_service $name $namespace $service_type $selector $ports $external_name $labels $dry_run $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -371,6 +401,7 @@ def create_from_file [
   dry_run: bool = false
   validate: bool = true
   save_config: bool = false
+  delegate_to?: string
 ] {
   try {
     if not ($file_path | path exists) {
@@ -396,9 +427,30 @@ def create_from_file [
       $cmd_args = ($cmd_args | append "--save-config")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "create_from_file"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          file_path: $file_path
+          namespace: $namespace
+          dry_run: $dry_run
+          validate: $validate
+          save_config: $save_config
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     {
@@ -411,7 +463,7 @@ def create_from_file [
         validate: $validate
         save_config: $save_config
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Resources created from file '($file_path)' in namespace '($namespace)'"
     } | to json
@@ -436,6 +488,7 @@ def create_namespace [
   labels?: any
   annotations?: any
   dry_run: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["create" "namespace" $name]
@@ -444,9 +497,29 @@ def create_namespace [
       $cmd_args = ($cmd_args | append "--dry-run=client")
     }
 
-    # Build and execute command
+    # Build command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
+    let cmd_string = $full_cmd | str join " "
+    
+    # Check for delegation
+    if $delegate_to != null {
+      return ({
+        type: "kubectl_command_for_delegation"
+        operation: "create_namespace"
+        command: $cmd_string
+        delegate_to: $delegate_to
+        instructions: $"Execute this command using ($delegate_to) delegation method"
+        parameters: {
+          name: $name
+          labels: $labels
+          annotations: $annotations
+          dry_run: $dry_run
+        }
+      } | to json)
+    }
+    
+    # Execute command directly
+    print $"Executing: ($cmd_string)"
     let result = run-external ...$full_cmd
 
     # Apply labels and annotations if provided (only if not dry run)
@@ -480,7 +553,7 @@ def create_namespace [
         labels: $labels
         annotations: $annotations
       }
-      command: ($full_cmd | str join " ")
+      command: $cmd_string
       result: $result
       message: $"Namespace '($name)' created successfully"
     } | to json
@@ -507,6 +580,7 @@ def create_configmap [
   from_env_file?: string
   labels?: any
   dry_run: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["create" "configmap" $name "--namespace" $namespace]
@@ -528,6 +602,10 @@ def create_configmap [
               message: $"File '($file)' does not exist"
             } | to json
           )
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         $cmd_args = ($cmd_args | append "--from-file" | append $file)
       }
@@ -610,6 +688,10 @@ def create_secret [
           for $pair in $literal_pairs {
             $cmd_args = ($cmd_args | append "--from-literal" | append $pair)
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
 
         if $from_file != null {
@@ -623,6 +705,10 @@ def create_secret [
               )
             }
             $cmd_args = ($cmd_args | append "--from-file" | append $file)
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -770,6 +856,10 @@ def create_service [
       "externalname" => {
         if $external_name != null {
           $cmd_args = ($cmd_args | append "--external-name" | append $external_name)
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
       }
       _ => {
@@ -778,6 +868,10 @@ def create_service [
           let first_port = $ports | first
           if $first_port.port? != null {
             $cmd_args = ($cmd_args | append "--tcp" | append $"($first_port.port):($first_port.target_port? | default $first_port.port)")
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }

@@ -53,6 +53,10 @@ def "main list-tools" [] {
             description: "Only return yes/no without explanation"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["verb", "resource"]
       }
@@ -68,6 +72,10 @@ def "main list-tools" [] {
             description: "Output format"
             enum: ["json", "yaml", "wide"]
             default: "wide"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -101,6 +109,10 @@ def "main list-tools" [] {
             description: "Remove subjects not specified in the file"
             default: false
           }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+          }
         }
         required: ["file_path", "namespace"]
       }
@@ -123,6 +135,10 @@ def "main list-tools" [] {
             type: "array"
             items: {type: "string"}
             description: "Check permissions as member of specified groups"
+          }
+          delegate_to: {
+            type: "string"
+            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
           }
         }
       }
@@ -149,11 +165,13 @@ def "main call-tool" [
       let all_namespaces = $parsed_args.all_namespaces? | default false
       let quiet = $parsed_args.quiet? | default false
 
-      auth_can_i $verb $resource $resource_name $namespace $subresource $as_user $as_group $all_namespaces $quiet
+      let delegate_to = $parsed_args.delegate_to?
+      auth_can_i $verb $resource $resource_name $namespace $subresource $as_user $as_group $all_namespaces $quiet $delegate_to
     }
     "auth_whoami" => {
       let output = $parsed_args.output? | default "wide"
-      auth_whoami $output
+      let delegate_to = $parsed_args.delegate_to?
+      auth_whoami $output $delegate_to
     }
     "auth_reconcile" => {
       let file_path = $parsed_args.file_path
@@ -162,14 +180,16 @@ def "main call-tool" [
       let remove_extra_permissions = $parsed_args.remove_extra_permissions? | default false
       let remove_extra_subjects = $parsed_args.remove_extra_subjects? | default false
 
-      auth_reconcile $file_path $namespace $dry_run $remove_extra_permissions $remove_extra_subjects
+      let delegate_to = $parsed_args.delegate_to?
+      auth_reconcile $file_path $namespace $dry_run $remove_extra_permissions $remove_extra_subjects $delegate_to
     }
     "auth_can_i_list" => {
       let namespace = $parsed_args.namespace?
       let as_user = $parsed_args.as_user?
       let as_group = $parsed_args.as_group?
 
-      auth_can_i_list $namespace $as_user $as_group
+      let delegate_to = $parsed_args.delegate_to?
+      auth_can_i_list $namespace $as_user $as_group $delegate_to
     }
     _ => {
       error make {msg: $"Unknown tool: ($tool_name)"}
@@ -188,6 +208,7 @@ def auth_can_i [
   as_group?: any
   all_namespaces: bool = false
   quiet: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["auth" "can-i" $verb $resource]
@@ -269,6 +290,7 @@ def auth_can_i [
 # Get current user information
 def auth_whoami [
   output: string = "wide"
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["auth" "whoami"]
@@ -310,6 +332,7 @@ def auth_reconcile [
   dry_run: bool = false
   remove_extra_permissions: bool = false
   remove_extra_subjects: bool = false
+  delegate_to?: string
 ] {
   try {
     if not ($file_path | path exists) {
@@ -375,6 +398,7 @@ def auth_can_i_list [
   namespace?: string
   as_user?: string
   as_group?: any
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["auth" "can-i" "--list"]
