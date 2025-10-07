@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "create_from_file"
+      title: "Create from File"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create resources from YAML/JSON file - can create new cluster resources"
       input_schema: {
         type: "object"
@@ -47,6 +48,7 @@ def "main list-tools" [] {
     }
     {
       name: "create_namespace"
+      title: "Create Namespace"
       description: "[MODIFIES CLUSTER] Create a new namespace"
       input_schema: {
         type: "object"
@@ -75,9 +77,20 @@ def "main list-tools" [] {
         }
         required: ["name"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          operation: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "operation", "command"]
+      }
     }
     {
       name: "create_configmap"
+      title: "Create ConfigMap"
       description: "[MODIFIES CLUSTER] Create configmap from files or literal values"
       input_schema: {
         type: "object"
@@ -122,6 +135,7 @@ def "main list-tools" [] {
     }
     {
       name: "create_secret"
+      title: "Create Secret"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create secret with sensitive data"
       input_schema: {
         type: "object"
@@ -192,6 +206,7 @@ def "main list-tools" [] {
     }
     {
       name: "create_deployment"
+      title: "Create Deployment"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create deployment with specified image"
       input_schema: {
         type: "object"
@@ -245,6 +260,7 @@ def "main list-tools" [] {
     }
     {
       name: "create_service"
+      title: "Create Service"
       description: "[MODIFIES CLUSTER] Create service to expose deployments or pods"
       input_schema: {
         type: "object"
@@ -307,7 +323,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

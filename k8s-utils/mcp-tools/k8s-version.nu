@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "version_client"
+      title: "Client Version"
       description: "Show kubectl client version information"
       input_schema: {
         type: "object"
@@ -26,9 +27,19 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          version_info: {type: "object"}
+          command: {type: "string"}
+        }
+        required: ["type", "version_info", "command"]
+      }
     }
     {
       name: "version_server"
+      title: "Server Version"
       description: "Show Kubernetes server version information"
       input_schema: {
         type: "object"
@@ -48,6 +59,7 @@ def "main list-tools" [] {
     }
     {
       name: "version_both"
+      title: "Client and Server Versions"
       description: "Show both client and server version information"
       input_schema: {
         type: "object"
@@ -67,6 +79,7 @@ def "main list-tools" [] {
     }
     {
       name: "version_short"
+      title: "Short Version Info"
       description: "Show concise version information for both client and server"
       input_schema: {
         type: "object"
@@ -80,6 +93,7 @@ def "main list-tools" [] {
     }
     {
       name: "version_compatibility"
+      title: "Version Compatibility"
       description: "Check client-server version compatibility and show version skew information"
       input_schema: {
         type: "object"
@@ -98,6 +112,7 @@ def "main list-tools" [] {
     }
     {
       name: "cluster_version_info"
+      title: "Cluster Version Info"
       description: "Get comprehensive cluster version and build information"
       input_schema: {
         type: "object"
@@ -125,7 +140,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

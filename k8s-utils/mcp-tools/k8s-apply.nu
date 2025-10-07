@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "apply_yaml"
+      title: "Apply YAML Configuration"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply Kubernetes YAML configuration from file or content - can create, update, or replace resources"
       input_schema: {
         type: "object"
@@ -52,9 +53,20 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          operation: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "operation", "command"]
+      }
     }
     {
       name: "apply_kustomization"
+      title: "Apply Kustomization"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply resources from a kustomization directory - can create, update, or replace multiple resources"
       input_schema: {
         type: "object"
@@ -151,7 +163,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "cordon_node"
+      title: "Cordon Node"
       description: "[MODIFIES CLUSTER] [DISRUPTIVE] Mark node as unschedulable - prevents new pods from being scheduled on node"
       input_schema: {
         type: "object"
@@ -29,9 +30,20 @@ def "main list-tools" [] {
         }
         required: ["node_name"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          operation: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "operation", "command"]
+      }
     }
     {
       name: "uncordon_node"
+      title: "Uncordon Node"
       description: "[MODIFIES CLUSTER] Mark node as schedulable - allows new pods to be scheduled on node"
       input_schema: {
         type: "object"
@@ -50,6 +62,7 @@ def "main list-tools" [] {
     }
     {
       name: "drain_node"
+      title: "Drain Node"
       description: "[MODIFIES CLUSTER] [HIGHLY DISRUPTIVE] Drain node for maintenance - evicts all pods and cordons node"
       input_schema: {
         type: "object"
@@ -98,6 +111,7 @@ def "main list-tools" [] {
     }
     {
       name: "taint_node"
+      title: "Taint Node"
       description: "[MODIFIES CLUSTER] [DISRUPTIVE] Add, update, or remove node taints - affects pod scheduling"
       input_schema: {
         type: "object"
@@ -131,6 +145,7 @@ def "main list-tools" [] {
     }
     {
       name: "get_node_info"
+      title: "Get Node Information"
       description: "Get detailed information about a specific node"
       input_schema: {
         type: "object"
@@ -164,6 +179,7 @@ def "main list-tools" [] {
     }
     {
       name: "list_nodes"
+      title: "List All Nodes"
       description: "List all nodes with their status and basic information"
       input_schema: {
         type: "object"
@@ -200,7 +216,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "exec_command"
+      title: "Execute Command in Container"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Execute command in a container - can modify files, processes, or container state"
       input_schema: {
         type: "object"
@@ -53,9 +54,19 @@ def "main list-tools" [] {
         }
         required: ["name", "namespace", "container", "command"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          command: {type: "string"}
+          output: {type: "string"}
+        }
+        required: ["type", "command"]
+      }
     }
     {
       name: "exec_script"
+      title: "Execute Script in Container"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Execute script content in container - can modify files, processes, or container state"
       input_schema: {
         type: "object"
@@ -100,6 +111,7 @@ def "main list-tools" [] {
     }
     {
       name: "exec_multiple"
+      title: "Execute Command on Multiple Pods"
       description: "[MODIFIES CLUSTER] [HIGHLY DESTRUCTIVE] Execute same command across multiple pods - can modify multiple containers simultaneously"
       input_schema: {
         type: "object"
@@ -146,6 +158,7 @@ def "main list-tools" [] {
     }
     {
       name: "exec_file_transfer"
+      title: "File Operations in Container"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Execute commands for file operations - can create, modify, or delete files in containers"
       input_schema: {
         type: "object"
@@ -198,7 +211,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

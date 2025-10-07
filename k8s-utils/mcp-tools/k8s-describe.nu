@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "describe_resource"
+      title: "Describe Kubernetes Resource"
       description: "Get detailed description of Kubernetes resources including events and relationships"
       input_schema: {
         type: "object"
@@ -128,7 +129,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

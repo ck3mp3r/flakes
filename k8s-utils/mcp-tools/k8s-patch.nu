@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "patch_strategic"
+      title: "Strategic Merge Patch"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply strategic merge patch to resource - can modify resource configuration"
       input_schema: {
         type: "object"
@@ -54,6 +55,7 @@ def "main list-tools" [] {
     }
     {
       name: "patch_merge"
+      title: "JSON Merge Patch"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply JSON merge patch to resource - can modify resource configuration"
       input_schema: {
         type: "object"
@@ -98,6 +100,7 @@ def "main list-tools" [] {
     }
     {
       name: "patch_json"
+      title: "JSON Patch"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply JSON patch (RFC 6902) to resource - can modify resource configuration"
       input_schema: {
         type: "object"
@@ -158,6 +161,7 @@ def "main list-tools" [] {
     }
     {
       name: "patch_subresource"
+      title: "Patch Subresource"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Patch a subresource like status or scale - can modify resource state"
       input_schema: {
         type: "object"
@@ -208,7 +212,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

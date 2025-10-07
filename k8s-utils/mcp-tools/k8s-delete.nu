@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "delete_resource"
+      title: "Delete Kubernetes Resource"
       description: "[MODIFIES CLUSTER] [DESTRUCTIVE] Delete a specific Kubernetes resource by name and type"
       input_schema: {
         type: "object"
@@ -42,9 +43,20 @@ def "main list-tools" [] {
         }
         required: ["resource_type", "name", "namespace"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          operation: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "operation", "command"]
+      }
     }
     {
       name: "delete_by_selector"
+      title: "Delete Resources by Label Selector"
       description: "[MODIFIES CLUSTER] [HIGHLY DESTRUCTIVE] Delete multiple resources matching label selector"
       input_schema: {
         type: "object"
@@ -91,6 +103,7 @@ def "main list-tools" [] {
     }
     {
       name: "delete_by_file"
+      title: "Delete Resources from File"
       description: "[MODIFIES CLUSTER] [DESTRUCTIVE] Delete resources defined in YAML file"
       input_schema: {
         type: "object"
@@ -131,6 +144,7 @@ def "main list-tools" [] {
     }
     {
       name: "delete_all_in_namespace"
+      title: "Delete All Resources in Namespace"
       description: "[MODIFIES CLUSTER] [HIGHLY DESTRUCTIVE] Delete all resources of a specific type in namespace"
       input_schema: {
         type: "object"
@@ -168,6 +182,7 @@ def "main list-tools" [] {
     }
     {
       name: "delete_with_cascade"
+      title: "Delete with Cascade Policy"
       description: "[MODIFIES CLUSTER] [HIGHLY DESTRUCTIVE] Delete resource with specific cascade policy"
       input_schema: {
         type: "object"
@@ -214,7 +229,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

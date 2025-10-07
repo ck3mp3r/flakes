@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "get_logs"
+      title: "Get Pod Logs"
       description: "Get logs from pods, deployments, or other resources"
       input_schema: {
         type: "object"
@@ -69,9 +70,19 @@ def "main list-tools" [] {
         }
         required: ["name"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          command: {type: "string"}
+          logs: {type: "string"}
+        }
+        required: ["type", "command"]
+      }
     }
     {
       name: "get_logs_selector"
+      title: "Get Logs by Selector"
       description: "Get logs from pods matching label selector"
       input_schema: {
         type: "object"
@@ -127,6 +138,7 @@ def "main list-tools" [] {
     }
     {
       name: "get_logs_deployment"
+      title: "Get Deployment Logs"
       description: "Get logs from all pods in a deployment"
       input_schema: {
         type: "object"
@@ -176,7 +188,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

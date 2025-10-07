@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "get_events"
+      title: "Get Cluster Events"
       description: "List cluster events with filtering and sorting options"
       input_schema: {
         type: "object"
@@ -54,9 +55,19 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          events: {type: "array", items: {type: "object"}}
+          command: {type: "string"}
+        }
+        required: ["type", "events", "command"]
+      }
     }
     {
       name: "get_events_for_object"
+      title: "Get Events for Object"
       description: "Get events for a specific Kubernetes object"
       input_schema: {
         type: "object"
@@ -94,6 +105,7 @@ def "main list-tools" [] {
     }
     {
       name: "watch_events"
+      title: "Watch Events"
       description: "Watch events in real-time (non-interactive streaming)"
       input_schema: {
         type: "object"
@@ -134,6 +146,7 @@ def "main list-tools" [] {
     }
     {
       name: "filter_events"
+      title: "Filter Events"
       description: "Filter and analyze events with advanced criteria"
       input_schema: {
         type: "object"
@@ -195,6 +208,7 @@ def "main list-tools" [] {
     }
     {
       name: "events_summary"
+      title: "Events Summary"
       description: "Generate summary and statistics of cluster events"
       input_schema: {
         type: "object"
@@ -233,6 +247,7 @@ def "main list-tools" [] {
     }
     {
       name: "top_events"
+      title: "Top Events"
       description: "Show most frequent or recent events"
       input_schema: {
         type: "object"
@@ -270,7 +285,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

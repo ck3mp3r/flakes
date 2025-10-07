@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "api_resources"
+      title: "List API Resources"
       description: "List available API resources in the cluster"
       input_schema: {
         type: "object"
@@ -55,9 +56,19 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          resources: {type: "array", items: {type: "object"}}
+          command: {type: "string"}
+        }
+        required: ["type", "resources", "command"]
+      }
     }
     {
       name: "api_versions"
+      title: "List API Versions"
       description: "List available API versions in the cluster"
       input_schema: {
         type: "object"
@@ -81,6 +92,7 @@ def "main list-tools" [] {
     }
     {
       name: "explain_resource"
+      title: "Explain Resource"
       description: "Get documentation for Kubernetes resource fields"
       input_schema: {
         type: "object"
@@ -114,6 +126,7 @@ def "main list-tools" [] {
     }
     {
       name: "api_resource_info"
+      title: "API Resource Info"
       description: "Get detailed information about a specific API resource"
       input_schema: {
         type: "object"
@@ -146,6 +159,7 @@ def "main list-tools" [] {
     }
     {
       name: "cluster_info"
+      title: "Cluster Info"
       description: "Display cluster information and endpoints"
       input_schema: {
         type: "object"
@@ -168,6 +182,7 @@ def "main list-tools" [] {
     }
     {
       name: "server_version"
+      title: "Server Version"
       description: "Get Kubernetes server version and build information"
       input_schema: {
         type: "object"
@@ -196,7 +211,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

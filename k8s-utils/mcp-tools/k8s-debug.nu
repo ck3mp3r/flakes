@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "debug_pod"
+      title: "Debug Pod"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create debug session for troubleshooting pods - creates ephemeral containers"
       input_schema: {
         type: "object"
@@ -66,6 +67,7 @@ def "main list-tools" [] {
     }
     {
       name: "debug_node"
+      title: "Debug Node"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create debug session on a node - creates privileged debug pod"
       input_schema: {
         type: "object"
@@ -105,6 +107,7 @@ def "main list-tools" [] {
     }
     {
       name: "debug_workload"
+      title: "Debug Workload"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Debug workload by creating a copy with debug container"
       input_schema: {
         type: "object"
@@ -155,6 +158,7 @@ def "main list-tools" [] {
     }
     {
       name: "debug_cleanup"
+      title: "Debug Cleanup"
       description: "[MODIFIES CLUSTER] Clean up debug resources created by debug sessions"
       input_schema: {
         type: "object"
@@ -187,6 +191,7 @@ def "main list-tools" [] {
     }
     {
       name: "list_debug_sessions"
+      title: "List Debug Sessions"
       description: "List active debug sessions and resources"
       input_schema: {
         type: "object"
@@ -214,6 +219,7 @@ def "main list-tools" [] {
     }
     {
       name: "debug_network"
+      title: "Debug Network"
       description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Create network debugging session with network tools"
       input_schema: {
         type: "object"
@@ -253,7 +259,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

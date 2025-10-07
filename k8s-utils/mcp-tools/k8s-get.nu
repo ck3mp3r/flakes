@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "get_resource"
+      title: "Get Kubernetes Resources"
       description: "Get Kubernetes resources with filtering and formatting options"
       input_schema: {
         type: "object"
@@ -51,9 +52,19 @@ def "main list-tools" [] {
         }
         required: ["resource_type"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "command"]
+      }
     }
     {
       name: "list_resource_types"
+      title: "List Resource Types"
       description: "List all available resource types in the cluster"
       input_schema: {
         type: "object"
@@ -64,9 +75,21 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          resource_types: {
+            type: "array"
+            items: {type: "string"}
+          }
+        }
+        required: ["type", "resource_types"]
+      }
     }
     {
       name: "get_resource_summary"
+      title: "Get Resource Summary"
       description: "Get a summary of resources across namespaces"
       input_schema: {
         type: "object"
@@ -78,6 +101,23 @@ def "main list-tools" [] {
           }
         }
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          summary: {
+            type: "object"
+            properties: {
+              resource_counts: {type: "object"}
+              namespaces: {
+                type: "array"
+                items: {type: "string"}
+              }
+            }
+          }
+        }
+        required: ["type", "summary"]
+      }
     }
   ] | to json
 }
@@ -85,7 +125,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

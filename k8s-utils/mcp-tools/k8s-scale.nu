@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "scale_resource"
+      title: "Scale Any Resource"
       description: "[MODIFIES CLUSTER] [DISRUPTIVE] Scale deployments, replica sets, or stateful sets - can cause service disruption"
       input_schema: {
         type: "object"
@@ -110,6 +111,7 @@ def "main list-tools" [] {
     }
     {
       name: "autoscale_deployment"
+      title: "Setup Horizontal Pod Autoscaler"
       description: "[MODIFIES CLUSTER] Set up horizontal pod autoscaling for a deployment - modifies scaling behavior"
       input_schema: {
         type: "object"
@@ -186,7 +188,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 

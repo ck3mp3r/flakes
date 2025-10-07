@@ -10,6 +10,7 @@ def "main list-tools" [] {
   [
     {
       name: "rollout_history"
+      title: "Rollout History"
       description: "View rollout history for deployments, daemonsets, or statefulsets"
       input_schema: {
         type: "object"
@@ -45,6 +46,7 @@ def "main list-tools" [] {
     }
     {
       name: "rollout_status"
+      title: "Rollout Status"
       description: "Check rollout status of deployment, daemonset, or statefulset"
       input_schema: {
         type: "object"
@@ -69,9 +71,20 @@ def "main list-tools" [] {
         }
         required: ["resource_type", "name", "namespace"]
       }
+      output_schema: {
+        type: "object"
+        properties: {
+          type: {type: "string"}
+          operation: {type: "string"}
+          command: {type: "string"}
+          result: {type: "string"}
+        }
+        required: ["type", "operation", "command"]
+      }
     }
     {
       name: "rollout_pause"
+      title: "Pause Rollout"
       description: "[MODIFIES CLUSTER] [DISRUPTIVE] Pause a rollout to prevent further updates"
       input_schema: {
         type: "object"
@@ -99,6 +112,7 @@ def "main list-tools" [] {
     }
     {
       name: "rollout_resume"
+      title: "Resume Rollout"
       description: "[MODIFIES CLUSTER] [DISRUPTIVE] Resume a paused rollout"
       input_schema: {
         type: "object"
@@ -126,6 +140,7 @@ def "main list-tools" [] {
     }
     {
       name: "rollout_restart"
+      title: "Restart Rollout"
       description: "[MODIFIES CLUSTER] [HIGHLY DISRUPTIVE] Restart a rollout by triggering a new deployment"
       input_schema: {
         type: "object"
@@ -163,6 +178,7 @@ def "main list-tools" [] {
     }
     {
       name: "rollout_undo"
+      title: "Undo Rollout"
       description: "[MODIFIES CLUSTER] [HIGHLY DISRUPTIVE] Undo a rollout to previous revision"
       input_schema: {
         type: "object"
@@ -208,7 +224,7 @@ def "main list-tools" [] {
 # Call a specific tool with arguments
 def "main call-tool" [
   tool_name: string # Name of the tool to call
-  args: string = "{}" # JSON arguments for the tool
+  args: any = {} # Arguments as nushell record or JSON string
 ] {
   let parsed_args = $args | from json
 
