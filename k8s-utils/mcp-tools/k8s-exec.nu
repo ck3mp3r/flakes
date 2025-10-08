@@ -1,5 +1,7 @@
 # Kubernetes exec tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -213,7 +215,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "exec_command" => {
@@ -266,7 +272,7 @@ def "main call-tool" [
       exec_file_transfer $resource_type $name $namespace $container $operation $path $content $permissions $delegate_to
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }

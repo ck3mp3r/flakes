@@ -1,5 +1,7 @@
 # Kubernetes resource application tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -8,155 +10,42 @@ def main [] {
 # List available MCP tools
 def "main list-tools" [] {
   [
-    {
-      name: "apply_yaml"
-      title: "Apply YAML Configuration"
-      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply Kubernetes YAML configuration from file or content - can create, update, or replace resources"
-      input_schema: {
-        type: "object"
-        properties: {
-          file_path: {
-            type: "string"
-            description: "Path to YAML file to apply"
-          }
-          yaml_content: {
-            type: "string"
-            description: "Raw YAML content to apply (alternative to file_path)"
-          }
-          namespace: {
-            type: "string"
-            description: "Target namespace (optional)"
-          }
-          dry_run: {
-            type: "boolean"
-            description: "Perform a dry run without actually applying"
-            default: false
-          }
-          validate: {
-            type: "boolean"
-            description: "Validate the resource against the server schema"
-            default: true
-          }
-          force: {
-            type: "boolean"
-            description: "Force apply even if there are conflicts"
-            default: false
-          }
-          server_side: {
-            type: "boolean"
-            description: "Use server-side apply"
-            default: false
-          }
-          delegate_to: {
-            type: "string"
-            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
-          }
-        }
-      }
-      output_schema: {
-        type: "object"
-        properties: {
-          type: {type: "string"}
-          operation: {type: "string"}
-          command: {type: "string"}
-          result: {type: "string"}
-        }
-        required: ["type", "operation", "command"]
-      }
-    }
-    {
-      name: "apply_kustomization"
-      title: "Apply Kustomization"
-      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply resources from a kustomization directory - can create, update, or replace multiple resources"
-      input_schema: {
-        type: "object"
-        properties: {
-          directory: {
-            type: "string"
-            description: "Path to directory containing kustomization.yaml"
-          }
-          namespace: {
-            type: "string"
-            description: "Target namespace (optional)"
-          }
-          dry_run: {
-            type: "boolean"
-            description: "Perform a dry run without actually applying"
-            default: false
-          }
-        }
-        required: ["directory"]
-      }
-    }
-    {
-      name: "validate_yaml"
-      description: "Validate YAML configuration without applying"
-      input_schema: {
-        type: "object"
-        properties: {
-          file_path: {
-            type: "string"
-            description: "Path to YAML file to validate"
-          }
-          yaml_content: {
-            type: "string"
-            description: "Raw YAML content to validate (alternative to file_path)"
-          }
-        }
-      }
-    }
-    {
-      name: "diff_apply"
-      description: "Show what would change if applying the configuration"
-      input_schema: {
-        type: "object"
-        properties: {
-          file_path: {
-            type: "string"
-            description: "Path to YAML file to diff"
-          }
-          yaml_content: {
-            type: "string"
-            description: "Raw YAML content to diff (alternative to file_path)"
-          }
-          namespace: {
-            type: "string"
-            description: "Target namespace (optional)"
-          }
-        }
-      }
-    }
-    {
-      name: "apply_with_wait"
-      description: "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply configuration and wait for resources to be ready - can create, update, or replace resources"
-      input_schema: {
-        type: "object"
-        properties: {
-          file_path: {
-            type: "string"
-            description: "Path to YAML file to apply"
-          }
-          yaml_content: {
-            type: "string"
-            description: "Raw YAML content to apply (alternative to file_path)"
-          }
-          namespace: {
-            type: "string"
-            description: "Target namespace (optional)"
-          }
-          timeout: {
-            type: "string"
-            description: "Timeout for waiting (e.g., '5m', '30s')"
-            default: "5m"
-          }
-          condition: {
-            type: "string"
-            description: "Condition to wait for (e.g., 'condition=Ready')"
-            default: "condition=Ready"
-          }
-        }
-      }
-    }
+    (tool "apply_yaml" "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply Kubernetes YAML configuration from file or content - can create, update, or replace resources"
+      (object_schema {
+        file_path: (string_prop "Path to YAML file to apply")
+        yaml_content: (string_prop "Raw YAML content to apply (alternative to file_path)")
+        namespace: (string_prop "Target namespace (optional)")
+        dry_run: (boolean_prop "Perform a dry run without actually applying")
+        validate: (boolean_prop "Validate the resource against the server schema" --default=true)
+        force: (boolean_prop "Force apply even if there are conflicts")
+        server_side: (boolean_prop "Use server-side apply")
+        delegate_to: (string_prop "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')")
+      } []) --title "Apply YAML Configuration")
+    (tool "apply_kustomization" "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply resources from a kustomization directory - can create, update, or replace multiple resources"
+      (object_schema {
+        directory: (string_prop "Path to directory containing kustomization.yaml")
+        namespace: (string_prop "Target namespace (optional)")
+        dry_run: (boolean_prop "Perform a dry run without actually applying")
+      } ["directory"]) --title "Apply Kustomization")
+    (tool "validate_yaml" "Validate YAML configuration without applying"
+      (object_schema {
+        file_path: (string_prop "Path to YAML file to validate")
+        yaml_content: (string_prop "Raw YAML content to validate (alternative to file_path)")
+      } []) --title "Validate YAML")
+    (tool "diff_apply" "Show what would change if applying the configuration"
+      (object_schema {
+        file_path: (string_prop "Path to YAML file to diff")
+        yaml_content: (string_prop "Raw YAML content to diff (alternative to file_path)")
+        namespace: (string_prop "Target namespace (optional)")
+      } []) --title "Diff Apply")
+    (tool "apply_with_wait" "[MODIFIES CLUSTER] [POTENTIALLY DESTRUCTIVE] Apply configuration and wait for resources to be ready - can create, update, or replace resources"
+      (object_schema {
+        file_path: (string_prop "Path to YAML file to apply")
+        yaml_content: (string_prop "Raw YAML content to apply (alternative to file_path)")
+        namespace: (string_prop "Target namespace (optional)")
+        timeout: (string_prop "Timeout for waiting (e.g., '5m', '30s')" --default "5m")
+        condition: (string_prop "Condition to wait for (e.g., 'condition=Ready')" --default "condition=Ready")
+      } []) --title "Apply with Wait")
   ] | to json
 }
 
@@ -165,7 +54,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "apply_yaml" => {
@@ -210,7 +103,7 @@ def "main call-tool" [
       apply_with_wait $file_path $yaml_content $namespace $timeout $condition
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }

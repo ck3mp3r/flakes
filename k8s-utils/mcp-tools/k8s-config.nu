@@ -1,5 +1,7 @@
 # Kubernetes configuration management tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -320,7 +322,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "config_view" => {
@@ -402,7 +408,7 @@ def "main call-tool" [
       config_rename_context $old_name $new_name
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }

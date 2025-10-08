@@ -1,5 +1,7 @@
 # Kubernetes version information tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -8,35 +10,11 @@ def main [] {
 # List available MCP tools
 def "main list-tools" [] {
   [
-    {
-      name: "version_client"
-      title: "Client Version"
-      description: "Show kubectl client version information"
-      input_schema: {
-        type: "object"
-        properties: {
-          output: {
-            type: "string"
-            description: "Output format"
-            enum: ["json", "yaml", "short"]
-            default: "json"
-          }
-          delegate_to: {
-            type: "string"
-            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
-          }
-        }
-      }
-      output_schema: {
-        type: "object"
-        properties: {
-          type: {type: "string"}
-          version_info: {type: "object"}
-          command: {type: "string"}
-        }
-        required: ["type", "version_info", "command"]
-      }
-    }
+    (tool "version_client" "Show kubectl client version information"
+      (object_schema {
+        output: (string_prop "Output format" --enum ["json", "yaml", "short"] --default "json")
+        delegate_to: (string_prop "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')")
+      } []) --title "Client Version")
     {
       name: "version_server"
       title: "Server Version"
@@ -142,7 +120,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "version_client" => {
@@ -176,7 +158,7 @@ def "main call-tool" [
       cluster_version_info $include_nodes $include_components $delegate_to
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }

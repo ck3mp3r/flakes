@@ -1,5 +1,7 @@
 # Kubernetes scaling tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -190,7 +192,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "scale_resource" => {
@@ -240,7 +246,7 @@ def "main call-tool" [
       scale_with_monitoring $resource_type $name $replicas $namespace $monitor_duration $delegate_to
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }

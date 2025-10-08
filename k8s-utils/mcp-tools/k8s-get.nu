@@ -1,5 +1,7 @@
 # Kubernetes resource retrieval tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -8,117 +10,31 @@ def main [] {
 # List available MCP tools
 def "main list-tools" [] {
   [
-    {
-      name: "get_resource"
-      title: "Get Kubernetes Resources"
-      description: "Get Kubernetes resources with filtering and formatting options"
-      input_schema: {
-        type: "object"
-        properties: {
-          resource_type: {
-            type: "string"
-            description: "Resource type (e.g., pods, deployments, services, nodes)"
-          }
-          name: {
-            type: "string"
-            description: "Resource name (optional - lists all if not specified)"
-          }
-          namespace: {
-            type: "string"
-            description: "Namespace (optional - uses current context if not specified)"
-          }
-          all_namespaces: {
-            type: "boolean"
-            description: "List resources across all namespaces"
-            default: false
-          }
-          output_format: {
-            type: "string"
-            description: "Output format (json, yaml, wide, name)"
-            default: "wide"
-          }
-          label_selector: {
-            type: "string"
-            description: "Label selector to filter resources (e.g., 'app=nginx')"
-          }
-          field_selector: {
-            type: "string"
-            description: "Field selector to filter resources (e.g., 'status.phase=Running')"
-          }
-          delegate_to: {
-            type: "string"
-            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
-          }
+    (tool "get_resource" "Get Kubernetes resources with filtering and formatting options" 
+      (object_schema {
+        resource_type: (string_prop "Resource type (e.g., pods, deployments, services, nodes)")
+        name: (string_prop "Resource name (optional - lists all if not specified)")
+        namespace: (string_prop "Namespace (optional - uses current context if not specified)")
+        all_namespaces: (boolean_prop "List resources across all namespaces")
+        output_format: (string_prop "Output format" --enum ["json", "yaml", "wide", "name"] --default "wide")
+        label_selector: (string_prop "Label selector to filter resources (e.g., 'app=nginx')")
+        field_selector: (string_prop "Field selector to filter resources (e.g., 'status.phase=Running')")
+        delegate_to: (string_prop "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')")
+      } ["resource_type"]) --title "Get Kubernetes Resources")
+    
+    (tool "list_resource_types" "List all available resource types in the cluster"
+      (object_schema {
+        namespaced: (boolean_prop "Filter to only namespaced resources")
+      } []) --title "List Resource Types")
+      
+    (tool "get_resource_summary" "Get a summary of resources across namespaces"
+      (object_schema {
+        resource_types: {
+          type: "array"
+          items: {type: "string"}
+          description: "List of resource types to summarize (e.g., ['pods', 'deployments'])"
         }
-        required: ["resource_type"]
-      }
-      output_schema: {
-        type: "object"
-        properties: {
-          type: {type: "string"}
-          command: {type: "string"}
-          result: {type: "string"}
-        }
-        required: ["type", "command"]
-      }
-    }
-    {
-      name: "list_resource_types"
-      title: "List Resource Types"
-      description: "List all available resource types in the cluster"
-      input_schema: {
-        type: "object"
-        properties: {
-          namespaced: {
-            type: "boolean"
-            description: "Filter to only namespaced resources"
-          }
-        }
-      }
-      output_schema: {
-        type: "object"
-        properties: {
-          type: {type: "string"}
-          resource_types: {
-            type: "array"
-            items: {type: "string"}
-          }
-        }
-        required: ["type", "resource_types"]
-      }
-    }
-    {
-      name: "get_resource_summary"
-      title: "Get Resource Summary"
-      description: "Get a summary of resources across namespaces"
-      input_schema: {
-        type: "object"
-        properties: {
-          resource_types: {
-            type: "array"
-            items: {type: "string"}
-            description: "List of resource types to summarize (e.g., ['pods', 'deployments'])"
-          }
-        }
-      }
-      output_schema: {
-        type: "object"
-        properties: {
-          type: {type: "string"}
-          summary: {
-            type: "object"
-            properties: {
-              resource_counts: {type: "object"}
-              namespaces: {
-                type: "array"
-                items: {type: "string"}
-              }
-            }
-          }
-        }
-        required: ["type", "summary"]
-      }
-    }
+      } []) --title "Get Resource Summary")
   ] | to json
 }
 
@@ -151,7 +67,7 @@ def "main call-tool" [
       get_resource_summary $resource_types
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }
@@ -179,19 +95,19 @@ def get_resource [
     if $all_namespaces {
       $cmd_args = ($cmd_args | append "--all-namespaces")
     } else if $namespace != null {
-      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
+      $cmd_args = ($cmd_args | append ["-n" $namespace])
     }
 
     # Add output format
-    $cmd_args = ($cmd_args | append "--output" | append $output_format)
+    $cmd_args = ($cmd_args | append ["-o" $output_format])
 
     # Add selectors
     if $label_selector != null {
-      $cmd_args = ($cmd_args | append "--selector" | append $label_selector)
+      $cmd_args = ($cmd_args | append ["-l" $label_selector])
     }
 
     if $field_selector != null {
-      $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
+      $cmd_args = ($cmd_args | append ["--field-selector" $field_selector])
     }
 
     # Build the command
@@ -199,7 +115,7 @@ def get_resource [
     let cmd_string = ($full_cmd | str join " ")
     
     if $delegate_to != null {
-      # Return command for delegation
+      # Return command for delegation (keeping existing functionality)
       {
         type: "kubectl_command_for_delegation"
         operation: "get_resource"
@@ -217,40 +133,32 @@ def get_resource [
         }
       } | to json
     } else {
-      # Execute directly (current behavior)
-      print $"Executing: ($cmd_string)"
-      let result = run-external ...$full_cmd
-
-      if $output_format in ["json" "yaml"] {
-        $result
-      } else {
-        {
-          type: "kubectl_output"
-          resource_type: $resource_type
-          command: $cmd_string
-          output: $result
-        } | to json
-      }
+      # Execute the command
+      let result = (run-external "kubectl" ...$cmd_args)
+      
+      result [
+        (text $"Operation: get_resource")
+        (text $"Command: ($cmd_string)")
+        (text $"Result:\n($result)")
+      ] | to json
     }
   } catch {|error|
-    {
-      type: "error"
-      message: $"Error retrieving ($resource_type): ($error.msg)"
-      suggestions: [
-        "Check if resource type is correct"
-        "Verify cluster access"
-        "Ensure namespace exists"
-        "Validate selectors"
-      ]
-    } | to json
+    result [
+      (text $"Error retrieving ($resource_type): ($error.msg)")
+      (text "Suggestions:")
+      (text "- Check if resource type is correct")
+      (text "- Verify cluster access")
+      (text "- Ensure namespace exists")
+      (text "- Validate selectors")
+    ] --error=true | to json
   }
 }
 
-# List all available resource types
+# List available resource types
 def list_resource_types [namespaced?: bool] {
   try {
     mut cmd_args = ["api-resources"]
-
+    
     if $namespaced != null {
       if $namespaced {
         $cmd_args = ($cmd_args | append "--namespaced=true")
@@ -259,72 +167,48 @@ def list_resource_types [namespaced?: bool] {
       }
     }
 
-    # Build and execute the command
     let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
-    let result = run-external ...$full_cmd
-
-    {
-      type: "api_resources"
-      filter: (
-        if $namespaced != null {
-          if $namespaced { "namespaced" } else { "cluster-scoped" }
-        } else { "all" }
-      )
-      command: ($full_cmd | str join " ")
-      output: $result
-      note: "Use these resource types with the get_resource tool"
-    } | to json
+    let result = (run-external "kubectl" ...$cmd_args)
+    
+    result [
+      (text $"Operation: list_resource_types")
+      (text $"Command: ($full_cmd | str join ' ')")
+      (text $"Result:\n($result)")
+      (text "Note: Use these resource types with the get_resource tool")
+    ] | to json
   } catch {|error|
-    {
-      type: "error"
-      message: $"Error listing resource types: ($error.msg)"
-    } | to json
+    result [
+      (text $"Error listing resource types: ($error.msg)")
+    ] --error=true | to json
   }
 }
 
 # Get a summary of resources across the cluster
 def get_resource_summary [resource_types: list<string>] {
-  let summary_data = $resource_types | each {|resource_type|
-    let count_result = try {
-      let full_cmd = ["kubectl" "get" $resource_type "--all-namespaces" "--no-headers"]
-      print $"Executing: ($full_cmd | str join ' ')"
-      run-external ...$full_cmd
-      | lines
-      | length
-    } catch {
-      null
-    }
-
-    let namespace_breakdown = try {
-      let full_cmd = ["kubectl" "get" $resource_type "--all-namespaces" "--no-headers"]
-      print $"Executing: ($full_cmd | str join ' ')"
-      run-external ...$full_cmd
-      | lines
-      | each {|line|
-        let parts = $line | split row ' '
-        if ($parts | length) > 0 { $parts.0 } else { null }
+  let summary_data = ($resource_types | each {|resource_type|
+    try {
+      let count_result = (run-external "kubectl" "get" $resource_type "--all-namespaces" "-o" "json" | from json | get items | length)
+      let namespace_breakdown = (run-external "kubectl" "get" $resource_type "--all-namespaces" "-o" "json" | from json | get items | group-by metadata.namespace | transpose key count | each {|item| {namespace: $item.key, count: ($item.count | length)}})
+      
+      {
+        resource_type: $resource_type
+        total_count: ($count_result | default 0)
+        namespace_breakdown: $namespace_breakdown
+        status: (if $count_result != null { "success" } else { "error" })
       }
-      | where $it != null
-      | group-by
-      | transpose namespace count
-      | each {|row| {namespace: $row.namespace count: ($row.count | length)} }
     } catch {
-      []
+      {
+        resource_type: $resource_type
+        total_count: 0
+        namespace_breakdown: []
+        status: "error"
+      }
     }
+  })
 
-    {
-      resource_type: $resource_type
-      total_count: ($count_result | default 0)
-      namespace_breakdown: $namespace_breakdown
-      status: (if $count_result != null { "success" } else { "error" })
-    }
-  }
-
-  {
-    type: "resource_summary"
-    summary: $summary_data
-    total_types_queried: ($resource_types | length)
-    successful_queries: ($summary_data | where status == "success" | length)
-  } | to json
+  result [
+    (text "Operation: get_resource_summary")
+    (text $"Resource types: ($resource_types | str join ', ')")
+    (text $"Summary:\n($summary_data | to yaml)")
+  ] | to json
 }

@@ -1,5 +1,7 @@
 # Kubernetes events monitoring tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -106,7 +108,7 @@ def "main list-tools" [] {
     {
       name: "watch_events"
       title: "Watch Events"
-      description: "Watch events in real-time (non-interactive streaming)"
+      description: "Watch events in real-time (streaming requires delegation) or get recent events snapshot"
       input_schema: {
         type: "object"
         properties: {
@@ -125,11 +127,11 @@ def "main list-tools" [] {
           }
           resource_version: {
             type: "string"
-            description: "Start watching from specific resource version"
+            description: "Start watching from specific resource version (only used when delegating)"
           }
           timeout: {
             type: "string"
-            description: "Timeout for watch operation (e.g., '5m', '1h')"
+            description: "Timeout for watch operation (e.g., '5m', '1h') - only used when delegating"
             default: "5m"
           }
           max_events: {
@@ -139,7 +141,7 @@ def "main list-tools" [] {
           }
           delegate_to: {
             type: "string"
-            description: "Optional: Return command for delegation instead of executing directly (e.g., 'nu_mcp', 'tmux')"
+            description: "REQUIRED for streaming/watch operations. Return command for delegation (e.g., 'tmux', 'screen', 'bash'). Without delegation, returns recent events snapshot."
           }
         }
       }
@@ -287,7 +289,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "get_events" => {
@@ -359,7 +365,7 @@ def "main call-tool" [
       top_events $namespace $metric $limit $time_window $delegate_to
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }
@@ -532,50 +538,79 @@ def watch_events [
   resource_version?: string
   timeout: string = "5m"
   max_events: int = 100
-
+  delegate_to?: string
 ] {
   try {
-    mut cmd_args = ["get" "events" "--watch" "--output" "json"]
+    # Check if delegation is provided for streaming operations
+    if $delegate_to != null {
+      # Streaming mode - build watch command for delegation
+      mut cmd_args = ["get" "events" "--watch" "--output" "json"]
 
-    if $all_namespaces {
-      $cmd_args = ($cmd_args | append "--all-namespaces")
-    } else if $namespace != null {
-      $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
-    }
+      if $all_namespaces {
+        $cmd_args = ($cmd_args | append "--all-namespaces")
+      } else if $namespace != null {
+        $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
+      }
 
-    if $field_selector != null {
-      $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
-    }
+      if $field_selector != null {
+        $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
+      }
 
-    if $resource_version != null {
-      $cmd_args = ($cmd_args | append "--resource-version" | append $resource_version)
-    }
+      if $resource_version != null {
+        $cmd_args = ($cmd_args | append "--resource-version" | append $resource_version)
+      }
 
-    # Add watch timeout
-    $cmd_args = ($cmd_args | append "--watch-only" | append "--timeout" | append $timeout)
+      # Add watch timeout
+      $cmd_args = ($cmd_args | append "--watch-only" | append "--timeout" | append $timeout)
 
-    # Build and execute command
-    let full_cmd = (["kubectl"] | append $cmd_args)
-    print $"Executing: ($full_cmd | str join ' ')"
-    print $"Watching events for ($timeout)... (max ($max_events) events)"
-    
-    # Note: This is a simplified version - real watch would need background processing
-    let result = run-external ...$full_cmd
-
-    {
-      type: "watch_events_result"
-      operation: "watch_events"
-      scope: (if $all_namespaces { "cluster-wide" } else if $namespace != null { $namespace } else { "default" })
-      filters: {
-        field_selector: $field_selector
-        resource_version: $resource_version
+      # Return command for delegation (streaming)
+      let full_cmd = (["kubectl"] | append $cmd_args)
+      {
+        type: "delegation_command"
+        operation: "watch_events_stream"
+        delegate_to: $delegate_to
+        command: ($full_cmd | str join " ")
+        scope: (if $all_namespaces { "cluster-wide" } else if $namespace != null { $namespace } else { "default" })
+        streaming: true
         timeout: $timeout
         max_events: $max_events
+        message: $"Streaming events requires delegation to ($delegate_to)"
       }
-      command: ($full_cmd | str join " ")
-      events_stream: $result
-      message: $"Watched events for ($timeout)"
-      note: "Watch streams are captured for the specified timeout period"
+    } else {
+      # Non-streaming mode - get recent events snapshot
+      mut cmd_args = ["get" "events" "--output" "json" "--sort-by" ".lastTimestamp"]
+
+      if $all_namespaces {
+        $cmd_args = ($cmd_args | append "--all-namespaces")
+      } else if $namespace != null {
+        $cmd_args = ($cmd_args | append "--namespace" | append $namespace)
+      }
+
+      if $field_selector != null {
+        $cmd_args = ($cmd_args | append "--field-selector" | append $field_selector)
+      }
+
+      # Build and execute command for snapshot
+      let full_cmd = (["kubectl"] | append $cmd_args)
+      let result = run-external ...$full_cmd
+
+      let events_data = ($result | from json)
+      let recent_events = if ($events_data.items | length) > $max_events {
+        $events_data.items | last $max_events
+      } else {
+        $events_data.items
+      }
+
+      {
+        type: "events_snapshot_result"
+        operation: "watch_events_snapshot"
+        scope: (if $all_namespaces { "cluster-wide" } else if $namespace != null { $namespace } else { "default" })
+        streaming: false
+        events_count: ($recent_events | length)
+        max_events: $max_events
+        events: $recent_events
+        message: $"Retrieved ($recent_events | length) recent events (snapshot mode - use delegate_to for streaming)"
+      }
     } | to json
   } catch {|error|
     {

@@ -1,5 +1,7 @@
 # Kubernetes resource creation tool for nu-mcp
 
+use nu-mcp-lib *
+
 # Default main command
 def main [] {
   help main
@@ -325,7 +327,11 @@ def "main call-tool" [
   tool_name: string # Name of the tool to call
   args: any = {} # Arguments as nushell record or JSON string
 ] {
-  let parsed_args = $args | from json
+  let parsed_args = if ($args | describe) == "string" {
+    $args | from json
+  } else {
+    $args
+  }
 
   match $tool_name {
     "create_from_file" => {
@@ -405,7 +411,7 @@ def "main call-tool" [
       create_service $name $namespace $service_type $selector $ports $external_name $labels $dry_run $delegate_to
     }
     _ => {
-      error make {msg: $"Unknown tool: ($tool_name)"}
+      result [(text $"Unknown tool: ($tool_name)")] --error=true | to json
     }
   }
 }
@@ -692,6 +698,7 @@ def create_secret [
   tls_key?: string
   labels?: any
   dry_run: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["create" "secret" $secret_type $name "--namespace" $namespace]
@@ -794,6 +801,7 @@ def create_deployment [
   labels?: any
   dry_run: bool = false
   save_config: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["create" "deployment" $name "--image" $image "--namespace" $namespace "--replicas" ($replicas | into string)]
@@ -863,6 +871,7 @@ def create_service [
   external_name?: string
   labels?: any
   dry_run: bool = false
+  delegate_to?: string
 ] {
   try {
     mut cmd_args = ["create" "service" ($service_type | str downcase) $name "--namespace" $namespace]
