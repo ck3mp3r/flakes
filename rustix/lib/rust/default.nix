@@ -25,28 +25,19 @@ let
         variant = linuxVariant;
       };
       isTargetLinux = builtins.match ".*-linux" target != null;
-      isNative = target == system;
+      isCrossCompiling = target != system;
 
-      tmpPkgs =
-        if isNative && isTargetLinux
-        then (import nixpkgs {inherit overlays system;}).pkgsStatic
-        else
-          import nixpkgs {
-            inherit overlays system;
-            crossSystem =
-              if isNative
-              then null
-              else
-                {
-                  config = fenixTarget;
-                  rustc = {config = fenixTarget;};
-                }
-                // (
-                  if isTargetLinux
-                  then {isStatic = true;}
-                  else {}
-                );
-          };
+      tmpPkgs = import nixpkgs {
+        inherit overlays system;
+        crossSystem =
+          if isCrossCompiling || isTargetLinux
+          then {
+            config = fenixTarget;
+            rustc = {config = fenixTarget;};
+            isStatic = isTargetLinux;
+          }
+          else null;
+      };
       toolchain = with fenix.packages.${system};
         combine [
           stable.cargo
