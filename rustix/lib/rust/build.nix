@@ -23,6 +23,18 @@
         buildInputs = extraArgs.buildInputs or [];
         nativeBuildInputs = extraArgs.nativeBuildInputs or [] 
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [pkgs.fixDarwinDylibNames];
+        
+        postFixup = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+          for bin in $out/bin/*; do
+            if [[ -f "$bin" && -x "$bin" ]]; then
+              # Replace Nix store paths with system paths for common libraries
+              ${pkgs.stdenv.cc.targetPrefix}install_name_tool -change \
+                "${pkgs.libiconv}/lib/libiconv.2.dylib" \
+                "/usr/lib/libiconv.2.dylib" \
+                "$bin" 2>/dev/null || true
+            fi
+          done
+        '';
       }
       // extraArgs);
 in
