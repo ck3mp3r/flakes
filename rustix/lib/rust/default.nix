@@ -27,17 +27,17 @@ let
       isTargetLinux = builtins.match ".*-linux" target != null;
       isCrossCompiling = target != system;
 
-      tmpPkgs = import nixpkgs {
-        inherit overlays system;
-        crossSystem =
-          if isCrossCompiling || isTargetLinux
-          then {
+      tmpPkgs =
+        if isCrossCompiling || isTargetLinux
+        then import nixpkgs {
+          inherit overlays system;
+          crossSystem = {
             config = fenixTarget;
             rustc = {config = fenixTarget;};
             isStatic = isTargetLinux;
-          }
-          else null;
-      };
+          };
+        }
+        else import nixpkgs {inherit overlays system;};
       toolchain = with fenix.packages.${system};
         combine [
           stable.cargo
