@@ -11,7 +11,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 | [🪨 crush](./crush/) | Glamourous AI coding TUI agent | `nix run github:ck3mp3r/flakes?dir=crush` |
 | [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
 | [🧠 avante.nvim](./avante/) | AI-powered IDE features for Neovim | Neovim plugin |
-| [🧰 rustix](./rustix/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./rustix/README.md) |
+| [🧰 rustnix](./rustnix/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./rustnix/README.md) |
 | [📊 slidev](./slidev/) | Presentation slides for developers | `nix run github:ck3mp3r/flakes?dir=slidev` |
 | [🤖 context7](./context7/) | Context7 MCP Server for AI-powered contextual assistance | `nix run github:ck3mp3r/flakes?dir=context7` |
 
@@ -36,7 +36,7 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 }
 ```
 
-Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, `rustix`, `slidev`, or `context7`.
+Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, `rustnix`, `slidev`, or `context7`.
 
 ## Contributing
 
