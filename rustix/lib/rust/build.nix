@@ -21,8 +21,7 @@
           cargoLock
           ;
         buildInputs = extraArgs.buildInputs or [];
-        nativeBuildInputs = extraArgs.nativeBuildInputs or [] 
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [pkgs.fixDarwinDylibNames];
+        nativeBuildInputs = extraArgs.nativeBuildInputs or [];
         
         postFixup = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
           for bin in $out/bin/*; do
