@@ -1,4 +1,4 @@
-# rustix
+# rustnix
 
 Reusable Nix library functions for multi-architecture Rust builds, artifact archiving/hashing, and platform/architecture helpers.
 
@@ -15,22 +15,22 @@ Reusable Nix library functions for multi-architecture Rust builds, artifact arch
 Add this flake as an input to your own flake:
 
 ```nix
-inputs.rustix.url = "github:ck3mp3r/flakes?dir=rustix&ref=main";
+inputs.rustnix.url = "github:ck3mp3r/flakes?dir=rustnix&ref=main";
 ```
 
 Then use the utilities from `lib` in your `flake.nix`:
 
 ```nix
-archiveAndHash = rustix.lib.archiveAndHash;
-utils = rustix.lib.utils;
-rustBuild = rustix.lib.rust.buildPackages;
+archiveAndHash = rustnix.lib.archiveAndHash;
+utils = rustnix.lib.utils;
+rustBuild = rustnix.lib.rust.buildPackages;
 ```
 
 ### Example: Multi-Architecture Rust Build
 
 ```nix
 let
-  rustBuild = rustix.lib.rust.buildPackages {
+  rustBuild = rustnix.lib.rust.buildPackages {
     pkgs = pkgs;
     nixpkgs = nixpkgs;
     overlays = []; # Optionally add overlays
@@ -51,7 +51,7 @@ in
 ### Example: Archiving and Hashing a Build Output
 
 ```nix
-outputs = { self, rustix, nixpkgs, ... }: {
+outputs = { self, rustnix, nixpkgs, ... }: {
   packages.x86_64-linux.example = let
     pkgs = import nixpkgs { system = "x86_64-linux"; };
     myDrv = pkgs.stdenv.mkDerivation {
@@ -63,7 +63,7 @@ outputs = { self, rustix, nixpkgs, ... }: {
         echo "Hello, world!" > $out/hello.txt
       '';
     };
-    archive = rustix.lib.archiveAndHash {
+    archive = rustnix.lib.archiveAndHash {
       pkgs = pkgs;
       drv = myDrv;
       name = "my-artifact";
@@ -76,8 +76,8 @@ outputs = { self, rustix, nixpkgs, ... }: {
 
 ```nix
 let
-  systemInfo = rustix.lib.utils.systemMap "x86_64-linux";
-  targetTriple = rustix.lib.utils.getTarget "x86_64-linux";
+  systemInfo = rustnix.lib.utils.systemMap "x86_64-linux";
+  targetTriple = rustnix.lib.utils.getTarget "x86_64-linux";
 in
   # systemInfo = { arch = "x86_64"; platform = "linux"; }
   # targetTriple = "x86_64-unknown-linux-musl"
