@@ -1,12 +1,12 @@
 let
-  buildPackages = {
+  buildPackage = {
     archiveAndHash ? false,
     buildInputs ? [],
     cargoLock,
     cargoToml,
     extraArgs ? {},
     fenix,
-    installData,
+    installData ? null,
     linuxVariant ? "musl",
     nativeBuildInputs ? [],
     nixpkgs,
@@ -15,115 +15,97 @@ let
     pkgs,
     src,
     system,
-    systems,
+    targetSystem ? system,
     aliases ? [],
   }: let
     utils = import ../utils.nix;
-    crossPkgs = target: let
-      fenixTarget = utils.getTarget {
-        system = target;
-        variant = linuxVariant;
-      };
-      isTargetLinux = builtins.match ".*-linux" target != null;
-      isCrossCompiling = target != system;
+    
+    # Build for the target system
+    fenixTarget = utils.getTarget {
+      system = targetSystem;
+      variant = linuxVariant;
+    };
+    isTargetLinux = builtins.match ".*-linux" targetSystem != null;
+    isCrossCompiling = targetSystem != system;
 
-      tmpPkgs =
-        if isCrossCompiling || isTargetLinux
-        then import nixpkgs {
-          inherit overlays system;
-          crossSystem = {
-            config = fenixTarget;
-            rustc = {config = fenixTarget;};
-            isStatic = isTargetLinux;
-          };
-        }
-        else import nixpkgs {inherit overlays system;};
-      toolchain = with fenix.packages.${system};
-        combine [
-          stable.cargo
-          stable.rustc
-          targets.${fenixTarget}.stable.rust-std
-        ];
-      callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
-        // {
+    tmpPkgs =
+      if isCrossCompiling || isTargetLinux
+      then import nixpkgs {
+        inherit overlays system;
+        crossSystem = {
           config = fenixTarget;
-          toolchain = toolchain;
-        });
-    in {
-      inherit callPackage;
-      pkgs = tmpPkgs;
+          rustc = {config = fenixTarget;};
+          isStatic = isTargetLinux;
+        };
+      }
+      else import nixpkgs {inherit overlays system;};
+      
+    toolchain = with fenix.packages.${system};
+      combine [
+        stable.cargo
+        stable.rustc
+        targets.${fenixTarget}.stable.rust-std
+      ];
+      
+    callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
+      // {
+        config = fenixTarget;
+        toolchain = toolchain;
+      });
+
+    mergedExtraArgs =
+      extraArgs
+      // {
+        buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+        nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+      };
+      
+    # Build the plain package
+    plainPackage = callPackage ./build.nix {
+      inherit cargoToml cargoLock src;
+      extraArgs = mergedExtraArgs;
       toolchain = toolchain;
     };
-
-    systemPackages = builtins.listToAttrs (map (target: {
-        name = target;
-        value = let
-          cross = crossPkgs target;
-          mergedExtraArgs =
-            extraArgs
-            // {
-              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-            };
-          plain = cross.callPackage ./build.nix {
-            inherit cargoToml cargoLock src;
-            extraArgs = mergedExtraArgs;
-            toolchain = cross.toolchain;
-          };
-          archiveAndHashLib = import ../archiveAndHash.nix;
-          archived = archiveAndHashLib {
-            inherit pkgs;
-            drv = plain;
-            name = "${cargoToml.package.name}-${target}";
-          };
-        in
-          if archiveAndHash
-          then archived
-          else plain;
-      })
-      systems);
-
-    # Create separate plain builds for installable packages
-    plainSystemPackages = builtins.listToAttrs (map (target: {
-        name = target;
-        value = let
-          cross = crossPkgs target;
-          mergedExtraArgs =
-            extraArgs
-            // {
-              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-            };
-        in
-          cross.callPackage ./build.nix {
-            inherit cargoToml cargoLock src;
-            extraArgs = mergedExtraArgs;
-            toolchain = cross.toolchain;
-          };
-      })
-      systems);
-
-    defaultPackage = pkgs.callPackage ./install.nix {
-      inherit cargoToml;
-      data = installData.${system};
+    
+    # Create archive if requested
+    archiveAndHashLib = import ../archiveAndHash.nix;
+    archivedPackage = archiveAndHashLib {
+      inherit pkgs;
+      drv = plainPackage;
+      name = "${cargoToml.package.name}-${targetSystem}";
     };
-  in let
-    basePackages = systemPackages // {default = defaultPackage;};
+    
+    # Default package (pre-built installer)
+    defaultPackage = 
+      if installData != null && installData ? ${system}
+      then pkgs.callPackage ./install.nix {
+        inherit cargoToml;
+        data = installData.${system};
+      }
+      else plainPackage;
 
-    # Add main package with custom name if provided (always installable)
+    # Main package result
+    mainPackage = if archiveAndHash then archivedPackage else plainPackage;
+    
+    # Create base packages
+    basePackages = { default = defaultPackage; };
+    
+    # Add main package with custom name if provided
     namedPackage =
       if packageName != null
-      then {${packageName} = plainSystemPackages.${system};} # Points to plain current system build
+      then {${packageName} = mainPackage;}
       else {};
 
-    # Add aliases (all point to plain current system build for installability)
+    # Add aliases (all point to main package)
     aliasPackages = builtins.listToAttrs (map (alias: {
         name = alias;
-        value = plainSystemPackages.${system};
+        value = mainPackage;
       })
       aliases);
   in
     basePackages // namedPackage // aliasPackages;
 in {
-  inherit buildPackages;
+  inherit buildPackage;
+  # Keep backward compatibility
+  buildPackages = buildPackage;
 }
