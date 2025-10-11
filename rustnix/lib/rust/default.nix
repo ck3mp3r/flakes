@@ -74,7 +74,7 @@ let
           archived = archiveAndHashLib {
             inherit pkgs;
             drv = plain;
-            name = cargoToml.package.name;
+            name = "${cargoToml.package.name}-${target}";
           };
         in
           if archiveAndHash
