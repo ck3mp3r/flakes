@@ -61,8 +61,8 @@ let
       toolchain = toolchain;
     };
 
-    # Build packages for each target architecture
-    systemPackages = builtins.listToAttrs (map (target: {
+    # Package outputs for each target architecture
+    packageOutputs = builtins.listToAttrs (map (target: {
         name = target;
         value = let
           cross = crossPkgs target;
@@ -72,26 +72,26 @@ let
               buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
               nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
             };
-          plain = cross.callPackage ./build.nix {
+          binaryPackage = cross.callPackage ./build.nix {
             inherit cargoToml cargoLock src;
             extraArgs = mergedExtraArgs;
             toolchain = cross.toolchain;
           };
           archiveAndHashLib = import ../archiveAndHash.nix;
-          archived = archiveAndHashLib {
+          distributionBundle = archiveAndHashLib {
             inherit pkgs;
-            drv = plain;
+            drv = binaryPackage;
             name = cargoToml.package.name;
           };
         in
           if archiveAndHash
-          then archived # .tgz with hashes for distribution
-          else plain; # Raw binary for installation
+          then distributionBundle # .tgz with hashes for distribution
+          else binaryPackage; # Just the binary executable
       })
       targets);
 
-    # Create separate plain builds for installable packages
-    plainSystemPackages = builtins.listToAttrs (map (target: {
+    # Binary package outputs for installable packages
+    binaryOutputs = builtins.listToAttrs (map (target: {
         name = target;
         value = let
           cross = crossPkgs target;
@@ -116,18 +116,18 @@ let
       data = installData.${system};
     };
   in let
-    basePackages = systemPackages // {default = defaultPackage;};
+    basePackages = packageOutputs // {default = defaultPackage;};
 
-    # Add main package with custom name (installable version)
+    # Add main package with custom name (installable binary)
     namedPackage =
       if packageName != null
-      then {${packageName} = plainSystemPackages.${system};}
+      then {${packageName} = binaryOutputs.${system};}
       else {};
 
-    # Add aliases pointing to current system build
+    # Add aliases pointing to current system binary
     aliasPackages = builtins.listToAttrs (map (alias: {
         name = alias;
-        value = plainSystemPackages.${system};
+        value = binaryOutputs.${system};
       })
       aliases);
   in
