@@ -19,7 +19,7 @@ let
     aliases ? [],
   }: let
     utils = import ../utils.nix;
-    
+
     # Check if current system is supported
     isSystemSupported = builtins.elem system supportedTargets;
 
@@ -63,11 +63,11 @@ let
       pkgs = tmpPkgs;
       toolchain = toolchain;
     };
-
   in
     # Only build package if current system is supported
-    if !isSystemSupported then {} else
-    let
+    if !isSystemSupported
+    then {}
+    else let
       # Build package for current system only
       cross = crossPkgs system;
       mergedExtraArgs =
@@ -76,14 +76,14 @@ let
           buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
           nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
         };
-      
+
       # Build binary package
       binaryPackage = cross.callPackage ./build.nix {
         inherit cargoToml cargoLock src;
         extraArgs = mergedExtraArgs;
         toolchain = cross.toolchain;
       };
-      
+
       # Create distribution bundle if requested
       archiveAndHashLib = import ../archiveAndHash.nix;
       distributionBundle = archiveAndHashLib {
@@ -91,32 +91,36 @@ let
         drv = binaryPackage;
         name = cargoToml.package.name;
       };
-      
+
       # Choose main package based on archiveAndHash flag
-      mainPackage = if archiveAndHash then distributionBundle else binaryPackage;
-      
+      mainPackage =
+        if archiveAndHash
+        then distributionBundle
+        else binaryPackage;
+
       # Pre-built installer from installData (if available)
-      defaultPackage = 
+      defaultPackage =
         if installData != null && installData ? ${system}
-        then pkgs.callPackage ./install.nix {
-          inherit cargoToml;
-          data = installData.${system};
-        }
+        then
+          pkgs.callPackage ./install.nix {
+            inherit cargoToml;
+            data = installData.${system};
+          }
         else mainPackage;
 
       # Create base packages
       basePackages = {default = defaultPackage;};
 
-      # Add main package with custom name (always binary for installability)
+      # Add main package with custom name (respects archiveAndHash flag)
       namedPackage =
         if packageName != null
-        then {${packageName} = binaryPackage;}
+        then {${packageName} = mainPackage;}
         else {};
 
-      # Add aliases pointing to binary package
+      # Add aliases pointing to main package (respects archiveAndHash flag)
       aliasPackages = builtins.listToAttrs (map (alias: {
           name = alias;
-          value = binaryPackage;
+          value = mainPackage;
         })
         aliases);
     in
