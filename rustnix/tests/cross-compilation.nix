@@ -3,7 +3,7 @@
   pkgs ? import <nixpkgs> {},
   lib ? pkgs.lib,
 }: let
-  # Test the cross-compilation logic from the current buildPackages function
+  # Test the cross-compilation logic from the current buildTargetOutputs function
   testCrossPkgs = buildSystem: targetSystem: let
     utils = import ../lib/utils.nix;
 

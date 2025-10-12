@@ -1,5 +1,5 @@
 let
-  buildPackages = {
+  buildTargetOutputs = {
     archiveAndHash ? false,
     buildInputs ? [],
     cargoLock,
@@ -133,5 +133,5 @@ let
   in
     basePackages // namedPackage // aliasPackages;
 in {
-  inherit buildPackages;
+  inherit buildTargetOutputs;
 }

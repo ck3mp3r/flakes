@@ -23,14 +23,14 @@ Then use the utilities from `lib` in your `flake.nix`:
 ```nix
 archiveAndHash = rustnix.lib.archiveAndHash;
 utils = rustnix.lib.utils;
-rustBuild = rustnix.lib.rust.buildPackages;
+rustBuild = rustnix.lib.rust.buildTargetOutputs;
 ```
 
 ### Example: Multi-Architecture Rust Build
 
 ```nix
 let
-  rustBuild = rustnix.lib.rust.buildPackages {
+  rustBuild = rustnix.lib.rust.buildTargetOutputs {
     pkgs = pkgs;
     nixpkgs = nixpkgs;
     overlays = []; # Optionally add overlays

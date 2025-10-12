@@ -13,7 +13,7 @@
   }: let
     utils = import ../lib/utils.nix;
 
-    # This simulates how buildPackages works for each target
+    # This simulates how buildTargetOutputs works for each target
     buildForTarget = target: let
       fenixTarget = utils.getTarget {
         system = target;
