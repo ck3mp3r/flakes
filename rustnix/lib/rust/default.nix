@@ -1,12 +1,12 @@
 let
-  buildPackage = {
+  buildTargetOutputs = {
     archiveAndHash ? false,
     buildInputs ? [],
     cargoLock,
     cargoToml,
     extraArgs ? {},
     fenix,
-    installData ? null,
+    installData,
     linuxVariant ? "musl",
     nativeBuildInputs ? [],
     nixpkgs,
@@ -14,96 +14,117 @@ let
     packageName ? null,
     pkgs,
     src,
-    system,
-    targetSystem ? system,
+    system, # Build system (your machine)
+    supportedTargets, # List of target architectures to support
     aliases ? [],
   }: let
     utils = import ../utils.nix;
-    
-    # Build for the target system
-    fenixTarget = utils.getTarget {
-      system = targetSystem;
-      variant = linuxVariant;
-    };
-    isTargetLinux = builtins.match ".*-linux" targetSystem != null;
-    isCrossCompiling = targetSystem != system;
 
-    tmpPkgs =
-      if isCrossCompiling || isTargetLinux
-      then import nixpkgs {
-        inherit overlays system;
-        crossSystem = {
-          config = fenixTarget;
-          rustc = {config = fenixTarget;};
-          isStatic = isTargetLinux;
-        };
-      }
-      else import nixpkgs {inherit overlays system;};
-      
-    toolchain = with fenix.packages.${system};
-      combine [
-        stable.cargo
-        stable.rustc
-        targets.${fenixTarget}.stable.rust-std
-      ];
-      
-    callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
-      // {
-        config = fenixTarget;
-        toolchain = toolchain;
-      });
+    # Check if current system is supported
+    isSystemSupported = builtins.elem system supportedTargets;
 
-    mergedExtraArgs =
-      extraArgs
-      // {
-        buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-        nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+    # Configure cross-compilation for a specific target
+    crossPkgs = target: let
+      fenixTarget = utils.getTarget {
+        system = target;
+        variant = linuxVariant;
       };
-      
-    # Build the plain package
-    plainPackage = callPackage ./build.nix {
-      inherit cargoToml cargoLock src;
-      extraArgs = mergedExtraArgs;
+      isTargetLinux = builtins.match ".*-linux" target != null;
+      isCrossCompiling = target != system;
+
+      # Import nixpkgs with cross-compilation support when needed
+      tmpPkgs =
+        if isCrossCompiling || isTargetLinux
+        then
+          import nixpkgs {
+            inherit overlays system; # Build on 'system'
+            crossSystem = {
+              config = fenixTarget;
+              rustc = {config = fenixTarget;};
+              isStatic = isTargetLinux; # Static musl builds for Linux
+            };
+          }
+        else import nixpkgs {inherit overlays system;};
+
+      # Toolchain always comes from build system
+      toolchain = with fenix.packages.${system};
+        combine [
+          stable.cargo
+          stable.rustc
+          targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
+        ];
+      callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
+        // {
+          config = fenixTarget;
+          toolchain = toolchain;
+        });
+    in {
+      inherit callPackage;
+      pkgs = tmpPkgs;
       toolchain = toolchain;
     };
-    
-    # Create archive if requested
-    archiveAndHashLib = import ../archiveAndHash.nix;
-    archivedPackage = archiveAndHashLib {
-      inherit pkgs;
-      drv = plainPackage;
-      name = "${cargoToml.package.name}-${targetSystem}";
-    };
-    
-    # Default package (pre-built installer)
-    defaultPackage = 
-      if installData != null && installData ? ${system}
-      then pkgs.callPackage ./install.nix {
-        inherit cargoToml;
-        data = installData.${system};
-      }
-      else plainPackage;
-
-    # Main package result
-    mainPackage = if archiveAndHash then archivedPackage else plainPackage;
-    
-    # Create base packages
-    basePackages = { default = defaultPackage; };
-    
-    # Add main package with custom name if provided
-    namedPackage =
-      if packageName != null
-      then {${packageName} = mainPackage;}
-      else {};
-
-    # Add aliases (all point to main package)
-    aliasPackages = builtins.listToAttrs (map (alias: {
-        name = alias;
-        value = mainPackage;
-      })
-      aliases);
   in
-    basePackages // namedPackage // aliasPackages;
+    # Only build package if current system is supported
+    if !isSystemSupported
+    then {}
+    else let
+      # Build package for current system only
+      cross = crossPkgs system;
+      mergedExtraArgs =
+        extraArgs
+        // {
+          buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+          nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+        };
+
+      # Build binary package
+      binaryPackage = cross.callPackage ./build.nix {
+        inherit cargoToml cargoLock src;
+        extraArgs = mergedExtraArgs;
+        toolchain = cross.toolchain;
+      };
+
+      # Create distribution bundle if requested
+      archiveAndHashLib = import ../archiveAndHash.nix;
+      distributionBundle = archiveAndHashLib {
+        inherit pkgs;
+        drv = binaryPackage;
+        name = cargoToml.package.name;
+      };
+
+      # Choose main package based on archiveAndHash flag
+      mainPackage =
+        if archiveAndHash
+        then distributionBundle
+        else binaryPackage;
+
+      # Pre-built installer from installData (if available)
+      defaultPackage =
+        if installData != null && installData ? ${system}
+        then
+          pkgs.callPackage ./install.nix {
+            inherit cargoToml;
+            data = installData.${system};
+          }
+        else mainPackage;
+
+      # Create base packages
+      basePackages = {default = defaultPackage;};
+
+      # Add main package with custom name (respects archiveAndHash flag)
+      namedPackage =
+        if packageName != null
+        then {${packageName} = mainPackage;}
+        else {};
+
+      # Add aliases pointing to main package (respects archiveAndHash flag)
+      aliasPackages = builtins.listToAttrs (map (alias: {
+          name = alias;
+          value = mainPackage;
+        })
+        aliases);
+    in
+      basePackages // namedPackage // aliasPackages;
 in {
-  inherit buildPackage;
+  inherit buildTargetOutputs;
 }

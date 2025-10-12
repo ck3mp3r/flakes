@@ -23,20 +23,20 @@ Then use the utilities from `lib` in your `flake.nix`:
 ```nix
 archiveAndHash = rustnix.lib.archiveAndHash;
 utils = rustnix.lib.utils;
-rustBuild = rustnix.lib.rust.buildPackages;
+rustBuild = rustnix.lib.rust.buildTargetOutputs;
 ```
 
 ### Example: Multi-Architecture Rust Build
 
 ```nix
 let
-  rustBuild = rustnix.lib.rust.buildPackages {
+  rustBuild = rustnix.lib.rust.buildTargetOutputs {
     pkgs = pkgs;
     nixpkgs = nixpkgs;
     overlays = []; # Optionally add overlays
     fenix = fenix;
-    system = "x86_64-linux";
-    systems = [ "x86_64-linux" "aarch64-linux" ];
+    system = "x86_64-linux";  # Build system (your machine)
+    supportedTargets = [ "x86_64-linux" "aarch64-linux" ];  # Supported target architectures
     cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     cargoLock = { lockFile = ./Cargo.lock; };
     src = ./.;
@@ -45,8 +45,32 @@ let
     extraArgs = {}; # Optional, extra args for build
   };
 in
-  rustBuild.x86_64-linux # or rustBuild.default
+  rustBuild # Returns { default = derivation; packageName = derivation; ... }
 ```
+
+### Usage with flake-utils
+
+The typical usage pattern with `flake-utils.lib.eachDefaultSystem`:
+
+```nix
+outputs = { self, nixpkgs, flake-utils, rustnix, fenix, ... }:
+  flake-utils.lib.eachDefaultSystem (system: {
+    packages = rustnix.lib.rust.buildTargetOutputs {
+      inherit system;
+      supportedTargets = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
+      pkgs = import nixpkgs { inherit system; };
+      # ... other parameters
+    };
+  });
+```
+
+This creates:
+```
+packages.x86_64-linux.default     
+packages.aarch64-linux.default    
+packages.aarch64-darwin.default   
+```
+
 
 ### Example: Archiving and Hashing a Build Output
 
@@ -82,5 +106,9 @@ in
   # systemInfo = { arch = "x86_64"; platform = "linux"; }
   # targetTriple = "x86_64-unknown-linux-musl"
 ```
+
+## Cross-Compilation Approach
+
+Cross-compilation happens automatically when the target differs from your build machine.
 
 See the source in `lib/` for more information on available helpers and detailed options for Rust multiarch builds.
