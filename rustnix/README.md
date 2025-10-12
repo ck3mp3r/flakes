@@ -45,30 +45,32 @@ let
     extraArgs = {}; # Optional, extra args for build
   };
 in
-  rustBuild.x86_64-linux # Native build for x86_64
-  # or rustBuild.aarch64-linux # Cross-compiled build for ARM64
-  # or rustBuild.default # Pre-built installer
+  rustBuild # Returns { default = derivation; packageName = derivation; ... }
 ```
 
-### Cross-Compilation Usage
+### Usage with flake-utils
 
-**✅ Correct way to cross-compile:**
-```bash
-# Build for ARM Linux (cross-compiles automatically if on different architecture)
-nix build .#packages.aarch64-linux.my-package
+The typical usage pattern with `flake-utils.lib.eachDefaultSystem`:
 
-# Build for x86 Linux
-nix build .#packages.x86_64-linux.my-package
-
-# Build for current system
-nix build .#my-package
+```nix
+outputs = { self, nixpkgs, flake-utils, rustnix, fenix, ... }:
+  flake-utils.lib.eachDefaultSystem (system: {
+    packages = rustnix.lib.rust.buildTargetOutputs {
+      inherit system;
+      supportedTargets = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
+      pkgs = import nixpkgs { inherit system; };
+      # ... other parameters
+    };
+  });
 ```
 
-**❌ Don't use --system for cross-compilation:**
-```bash
-# This forces emulation/remote builders instead of cross-compilation
-nix build --system aarch64-linux .#my-package  # AVOID THIS
+This creates:
 ```
+packages.x86_64-linux.default     
+packages.aarch64-linux.default    
+packages.aarch64-darwin.default   
+```
+
 
 ### Example: Archiving and Hashing a Build Output
 
@@ -107,18 +109,6 @@ in
 
 ## Cross-Compilation Approach
 
-Rustnix handles cross-compilation by:
-
-1. **Build System**: Your actual machine (detected automatically) provides the toolchain
-2. **Target Architectures**: Specified in the `supportedTargets` parameter, creates packages for each target
-3. **Automatic Detection**: Cross-compilation happens when target ≠ build system
-4. **Package Selection**: Use `.#packages.target-system.package` to build for specific targets
-
-This approach provides:
-- ✅ True cross-compilation (no emulation required)
-- ✅ Uses native toolchain performance 
-- ✅ Works in pure evaluation mode
-- ✅ Compatible with CI/CD environments
-- ✅ Follows standard Nix conventions
+Cross-compilation happens automatically when the target differs from your build machine.
 
 See the source in `lib/` for more information on available helpers and detailed options for Rust multiarch builds.

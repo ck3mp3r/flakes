@@ -19,6 +19,9 @@ let
     aliases ? [],
   }: let
     utils = import ../utils.nix;
+    
+    # Check if current system is supported
+    isSystemSupported = builtins.elem system supportedTargets;
 
     # Configure cross-compilation for a specific target
     crossPkgs = target: let
@@ -61,77 +64,63 @@ let
       toolchain = toolchain;
     };
 
-    # Package outputs for each target architecture
-    packageOutputs = builtins.listToAttrs (map (target: {
-        name = target;
-        value = let
-          cross = crossPkgs target;
-          mergedExtraArgs =
-            extraArgs
-            // {
-              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-            };
-          binaryPackage = cross.callPackage ./build.nix {
-            inherit cargoToml cargoLock src;
-            extraArgs = mergedExtraArgs;
-            toolchain = cross.toolchain;
-          };
-          archiveAndHashLib = import ../archiveAndHash.nix;
-          distributionBundle = archiveAndHashLib {
-            inherit pkgs;
-            drv = binaryPackage;
-            name = cargoToml.package.name;
-          };
-        in
-          if archiveAndHash
-          then distributionBundle # .tgz with hashes for distribution
-          else binaryPackage; # Just the binary executable
-      })
-      supportedTargets);
-
-    # Binary package outputs for installable packages
-    binaryOutputs = builtins.listToAttrs (map (target: {
-        name = target;
-        value = let
-          cross = crossPkgs target;
-          mergedExtraArgs =
-            extraArgs
-            // {
-              buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
-              nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
-            };
-        in
-          cross.callPackage ./build.nix {
-            inherit cargoToml cargoLock src;
-            extraArgs = mergedExtraArgs;
-            toolchain = cross.toolchain;
-          };
-      })
-      supportedTargets);
-
-    # Pre-built installer from installData
-    defaultPackage = pkgs.callPackage ./install.nix {
-      inherit cargoToml;
-      data = installData.${system};
-    };
-  in let
-    basePackages = packageOutputs // {default = defaultPackage;};
-
-    # Add main package with custom name (installable binary)
-    namedPackage =
-      if packageName != null
-      then {${packageName} = binaryOutputs.${system};}
-      else {};
-
-    # Add aliases pointing to current system binary
-    aliasPackages = builtins.listToAttrs (map (alias: {
-        name = alias;
-        value = binaryOutputs.${system};
-      })
-      aliases);
   in
-    basePackages // namedPackage // aliasPackages;
+    # Only build package if current system is supported
+    if !isSystemSupported then {} else
+    let
+      # Build package for current system only
+      cross = crossPkgs system;
+      mergedExtraArgs =
+        extraArgs
+        // {
+          buildInputs = (extraArgs.buildInputs or []) ++ buildInputs;
+          nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
+        };
+      
+      # Build binary package
+      binaryPackage = cross.callPackage ./build.nix {
+        inherit cargoToml cargoLock src;
+        extraArgs = mergedExtraArgs;
+        toolchain = cross.toolchain;
+      };
+      
+      # Create distribution bundle if requested
+      archiveAndHashLib = import ../archiveAndHash.nix;
+      distributionBundle = archiveAndHashLib {
+        inherit pkgs;
+        drv = binaryPackage;
+        name = cargoToml.package.name;
+      };
+      
+      # Choose main package based on archiveAndHash flag
+      mainPackage = if archiveAndHash then distributionBundle else binaryPackage;
+      
+      # Pre-built installer from installData (if available)
+      defaultPackage = 
+        if installData != null && installData ? ${system}
+        then pkgs.callPackage ./install.nix {
+          inherit cargoToml;
+          data = installData.${system};
+        }
+        else mainPackage;
+
+      # Create base packages
+      basePackages = {default = defaultPackage;};
+
+      # Add main package with custom name (always binary for installability)
+      namedPackage =
+        if packageName != null
+        then {${packageName} = binaryPackage;}
+        else {};
+
+      # Add aliases pointing to binary package
+      aliasPackages = builtins.listToAttrs (map (alias: {
+          name = alias;
+          value = binaryPackage;
+        })
+        aliases);
+    in
+      basePackages // namedPackage // aliasPackages;
 in {
   inherit buildTargetOutputs;
 }
