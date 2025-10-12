@@ -36,7 +36,7 @@ let
     overlays = []; # Optionally add overlays
     fenix = fenix;
     system = "x86_64-linux";  # Build system (your machine)
-    targets = [ "x86_64-linux" "aarch64-linux" ];  # Supported target architectures
+    supportedTargets = [ "x86_64-linux" "aarch64-linux" ];  # Supported target architectures
     cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     cargoLock = { lockFile = ./Cargo.lock; };
     src = ./.;
@@ -110,7 +110,7 @@ in
 Rustnix handles cross-compilation by:
 
 1. **Build System**: Your actual machine (detected automatically) provides the toolchain
-2. **Target Architectures**: Specified in the `targets` parameter, creates packages for each target
+2. **Target Architectures**: Specified in the `supportedTargets` parameter, creates packages for each target
 3. **Automatic Detection**: Cross-compilation happens when target ≠ build system
 4. **Package Selection**: Use `.#packages.target-system.package` to build for specific targets
 

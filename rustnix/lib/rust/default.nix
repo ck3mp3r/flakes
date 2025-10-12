@@ -15,7 +15,7 @@ let
     pkgs,
     src,
     system, # Build system (your machine)
-    targets, # List of target architectures to support
+    supportedTargets, # List of target architectures to support
     aliases ? [],
   }: let
     utils = import ../utils.nix;
@@ -88,7 +88,7 @@ let
           then distributionBundle # .tgz with hashes for distribution
           else binaryPackage; # Just the binary executable
       })
-      targets);
+      supportedTargets);
 
     # Binary package outputs for installable packages
     binaryOutputs = builtins.listToAttrs (map (target: {
@@ -108,7 +108,7 @@ let
             toolchain = cross.toolchain;
           };
       })
-      targets);
+      supportedTargets);
 
     # Pre-built installer from installData
     defaultPackage = pkgs.callPackage ./install.nix {
