@@ -35,8 +35,8 @@ let
     nixpkgs = nixpkgs;
     overlays = []; # Optionally add overlays
     fenix = fenix;
-    system = "x86_64-linux";
-    systems = [ "x86_64-linux" "aarch64-linux" ];
+    system = "x86_64-linux";  # Build system (your machine)
+    targets = [ "x86_64-linux" "aarch64-linux" ];  # Supported target architectures
     cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     cargoLock = { lockFile = ./Cargo.lock; };
     src = ./.;
@@ -45,7 +45,29 @@ let
     extraArgs = {}; # Optional, extra args for build
   };
 in
-  rustBuild.x86_64-linux # or rustBuild.default
+  rustBuild.x86_64-linux # Native build for x86_64
+  # or rustBuild.aarch64-linux # Cross-compiled build for ARM64
+  # or rustBuild.default # Pre-built installer
+```
+
+### Cross-Compilation Usage
+
+**✅ Correct way to cross-compile:**
+```bash
+# Build for ARM Linux (cross-compiles automatically if on different architecture)
+nix build .#packages.aarch64-linux.my-package
+
+# Build for x86 Linux
+nix build .#packages.x86_64-linux.my-package
+
+# Build for current system
+nix build .#my-package
+```
+
+**❌ Don't use --system for cross-compilation:**
+```bash
+# This forces emulation/remote builders instead of cross-compilation
+nix build --system aarch64-linux .#my-package  # AVOID THIS
 ```
 
 ### Example: Archiving and Hashing a Build Output
@@ -82,5 +104,21 @@ in
   # systemInfo = { arch = "x86_64"; platform = "linux"; }
   # targetTriple = "x86_64-unknown-linux-musl"
 ```
+
+## Cross-Compilation Approach
+
+Rustnix handles cross-compilation by:
+
+1. **Build System**: Your actual machine (detected automatically) provides the toolchain
+2. **Target Architectures**: Specified in the `targets` parameter, creates packages for each target
+3. **Automatic Detection**: Cross-compilation happens when target ≠ build system
+4. **Package Selection**: Use `.#packages.target-system.package` to build for specific targets
+
+This approach provides:
+- ✅ True cross-compilation (no emulation required)
+- ✅ Uses native toolchain performance 
+- ✅ Works in pure evaluation mode
+- ✅ Compatible with CI/CD environments
+- ✅ Follows standard Nix conventions
 
 See the source in `lib/` for more information on available helpers and detailed options for Rust multiarch builds.
