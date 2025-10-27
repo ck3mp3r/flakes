@@ -1,0 +1,32 @@
+name: rustnix-check
+
+on:
+  pull_request:
+    paths:
+      - "rustnix/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "rustnix/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check flake
+        run: nix flake check --no-pure-eval
+        working-directory: rustnix
+
+      - name: Check formatting
+        run: nix fmt -- --check .
+        working-directory: rustnix

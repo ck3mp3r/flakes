@@ -50,6 +50,11 @@ The dev shell includes:
 - Alejandra formatter
 - Pre-commit hooks with alejandra
 
+**Note:** Due to devenv integration, this flake requires `--no-pure-eval` for commands like `nix flake check`. In CI/CD workflows, use:
+```bash
+nix flake check --no-pure-eval
+```
+
 ### Example: Multi-Architecture Rust Build
 
 ```nix
