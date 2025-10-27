@@ -22,10 +22,15 @@ inputs = {
     url = "github:nix-community/fenix";
     inputs.nixpkgs.follows = "nixpkgs";
   };
+  devenv = {
+    url = "github:cachix/devenv";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
   
-  # Make rustnix follow your fenix version
-  rustnix.inputs.fenix.follows = "fenix";
+  # Make rustnix follow your input versions
   rustnix.inputs.nixpkgs.follows = "nixpkgs";
+  rustnix.inputs.fenix.follows = "fenix";
+  rustnix.inputs.devenv.follows = "devenv";
 };
 ```
 
@@ -111,19 +116,27 @@ packages.aarch64-darwin.default
 
 ### Overriding Inputs
 
-You can override fenix or nixpkgs when consuming this flake:
+You can override nixpkgs, fenix, or devenv when consuming this flake:
 
 ```nix
 inputs = {
   rustnix.url = "github:ck3mp3r/flakes?dir=rustnix";
   nixpkgs.url = "github:nixos/nixpkgs/specific-branch";
   fenix.url = "github:nix-community/fenix/specific-commit";
+  devenv.url = "github:cachix/devenv/specific-version";
   
   # Make rustnix follow your inputs
   rustnix.inputs.nixpkgs.follows = "nixpkgs";
   rustnix.inputs.fenix.follows = "fenix";
+  rustnix.inputs.devenv.follows = "devenv";
 };
 ```
+
+This allows you to:
+- Pin specific versions of dependencies across your project
+- Use custom nixpkgs branches or commits
+- Control Rust toolchain versions via fenix
+- Manage devenv versions for development environments
 
 
 ### Example: Archiving and Hashing a Build Output
