@@ -14,6 +14,7 @@ A collection of useful Nix flakes providing packaged software and tools.
 | [🧰 rustnix](./rustnix/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./rustnix/README.md) |
 | [📊 slidev](./slidev/) | Presentation slides for developers | `nix run github:ck3mp3r/flakes?dir=slidev` |
 | [🤖 context7](./context7/) | Context7 MCP Server for AI-powered contextual assistance | `nix run github:ck3mp3r/flakes?dir=context7` |
+| [💻 opencode](./opencode/) | AI coding agent with pre-populated cache and offline support | `nix run github:ck3mp3r/flakes?dir=opencode` |
 
 ## Quick Start
 
@@ -36,7 +37,7 @@ nix profile install github:ck3mp3r/flakes?dir=<flake-name>
 }
 ```
 
-Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, `rustnix`, `slidev`, or `context7`.
+Replace `<flake-name>` with `k8s-utils`, `mods`, `crush`, `topiary-nu`, `rustnix`, `slidev`, `context7`, or `opencode`.
 
 ## Contributing
 
