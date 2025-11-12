@@ -53,23 +53,24 @@ During the Nix build:
 1. Sets up a temporary HOME directory
 2. Runs opencode commands to trigger cache population
 3. Captures what can be pre-populated: `models.json` (~416KB), `node_modules` (~6MB), `bun.lock`, `package.json`
-4. Stores the captured cache in the Nix store at `$out/opencode`
+4. Stores the captured cache in the Nix store at `$out/`
+5. Includes the platform-specific TUI binary for your system architecture
 
 ### 2. `opencode-with-cache` (runtime)
 
 The main package wraps the upstream opencode binary:
-1. On first run, checks if `~/.cache/opencode` exists
-2. If not, creates it with:
-   - Symlinks to read-only components in Nix store (tui, node_modules, models.json)
-   - Copies only writable files (version file)
+1. On every run, ensures `~/.cache-nix/opencode` is properly set up
+2. Always updates symlinks to point to the current Nix store path:
+   - Symlinks to read-only components in Nix store (tui, node_modules, models.json, package.json, bun.lock)
+   - Copies only writable files (version file) if they don't exist
 3. Launches the real opencode binary
 
-This hybrid approach minimizes disk usage while providing all necessary data.
+This hybrid approach minimizes disk usage while providing all necessary data and ensures the cache always points to the correct Nix store generation.
 
 ## Complete Cache Pre-population with Smart Symlinking
 
 This flake pre-populates **everything** OpenCode needs (~97MB in Nix store):
-- **TUI binaries** (81MB) - Platform-specific, fetched from GitHub releases as flake inputs
+- **TUI binary** (81MB) - Platform-specific for your architecture, fetched from GitHub releases as flake inputs
 - **node_modules** (~15MB) - Runtime dependencies including all provider auth plugins:
   - `@ai-sdk/amazon-bedrock` - Amazon Bedrock provider
   - `@ai-sdk/anthropic` - Anthropic/Claude provider
@@ -84,11 +85,11 @@ Everything is downloaded and stored in the Nix store at build time, so OpenCode 
 
 ### Efficient Storage Strategy
 
-On first run, the wrapper creates `~/.cache-nix/opencode` with:
+The wrapper automatically maintains `~/.cache-nix/opencode` on every run with:
 - **Symlinks** to large read-only components (tui, node_modules, models.json, package.json, bun.lock) - 97MB in Nix store, ~0 bytes copied
 - **Copies** only writable files (version, logs, sessions) - minimal disk usage
 
-This means you get the full 97MB cache with only ~4KB actual disk usage in your home directory!
+This means you get the full 97MB cache with only ~4KB actual disk usage in your home directory! The symlinks are always refreshed to point to the current Nix store generation, ensuring consistency across updates.
 
 **Note**: Uses `~/.cache-nix/opencode` instead of `~/.cache/opencode` to avoid conflicts with existing OpenCode installations.
 

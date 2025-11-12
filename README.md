@@ -8,10 +8,10 @@ A collection of useful Nix flakes providing packaged software and tools.
 |-------|-------------|-------------|
 | [☸️ k8s-utils](./k8s-utils/) | Comprehensive Kubernetes CLI tools bundle | `nix shell github:ck3mp3r/flakes?dir=k8s-utils` |
 | [🤖 mods](./mods/) | AI on the command line | `nix run github:ck3mp3r/flakes?dir=mods` |
-| [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
+| [💻 opencode](./opencode/) | AI coding agent with pre-populated cache and offline support | `nix run github:ck3mp3r/flakes?dir=opencode` |
 | [🧰 rustnix](./rustnix/) | Reusable Nix library functions for Rust multiarch and artifact packaging | See [README](./rustnix/README.md) |
 | [📊 slidev](./slidev/) | Presentation slides for developers | `nix run github:ck3mp3r/flakes?dir=slidev` |
-| [💻 opencode](./opencode/) | AI coding agent with pre-populated cache and offline support | `nix run github:ck3mp3r/flakes?dir=opencode` |
+| [🌳 topiary-nu](./topiary-nu/) | Nushell formatting with tree-sitter | `nix run github:ck3mp3r/flakes?dir=topiary-nu` |
 
 ## Quick Start
 
