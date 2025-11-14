@@ -61,8 +61,8 @@ During the Nix build:
 The main package wraps the upstream opencode binary:
 1. On every run, ensures `~/.cache-nix/opencode` is properly set up
 2. Always updates symlinks to point to the current Nix store path:
-   - Symlinks to read-only components in Nix store (tui, node_modules, models.json, package.json, bun.lock)
-   - Copies only writable files (version file) if they don't exist
+   - Symlinks to read-only components in Nix store (tui, node_modules, package.json, bun.lock)
+   - Copies writable files (models.json, version file) if they don't exist
 3. Launches the real opencode binary
 
 This hybrid approach minimizes disk usage while providing all necessary data and ensures the cache always points to the correct Nix store generation.
@@ -86,10 +86,10 @@ Everything is downloaded and stored in the Nix store at build time, so OpenCode 
 ### Efficient Storage Strategy
 
 The wrapper automatically maintains `~/.cache-nix/opencode` on every run with:
-- **Symlinks** to large read-only components (tui, node_modules, models.json, package.json, bun.lock) - 97MB in Nix store, ~0 bytes copied
-- **Copies** only writable files (version, logs, sessions) - minimal disk usage
+- **Symlinks** to large read-only components (tui, node_modules, package.json, bun.lock) - ~96MB in Nix store, ~0 bytes copied
+- **Copies** writable files (models.json, version, logs, sessions) - ~420KB disk usage
 
-This means you get the full 97MB cache with only ~4KB actual disk usage in your home directory! The symlinks are always refreshed to point to the current Nix store generation, ensuring consistency across updates.
+This means you get the full 97MB cache with only ~420KB actual disk usage in your home directory! The symlinks are always refreshed to point to the current Nix store generation, ensuring consistency across updates.
 
 **Note**: Uses `~/.cache-nix/opencode` instead of `~/.cache/opencode` to avoid conflicts with existing OpenCode installations.
 

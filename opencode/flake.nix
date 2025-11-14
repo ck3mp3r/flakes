@@ -137,12 +137,13 @@
                 rm -f "$XDG_CACHE_HOME/opencode/models.json"
                 rm -f "$XDG_CACHE_HOME/opencode/package.json"
                 rm -f "$XDG_CACHE_HOME/opencode/bun.lock"
-                # Create symlinks to Nix store
+                # Create symlinks to Nix store (read-only resources)
                 ln -s "'"$out"'/tui" "$XDG_CACHE_HOME/opencode/tui"
                 ln -s "'"$out"'/node_modules" "$XDG_CACHE_HOME/opencode/node_modules"
-                ln -s "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
                 ln -s "'"$out"'/package.json" "$XDG_CACHE_HOME/opencode/package.json"
                 ln -s "'"$out"'/bun.lock" "$XDG_CACHE_HOME/opencode/bun.lock"
+                # Copy models.json (needs to be writable)
+                cp "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
                 # Only copy version if it does not exist (writable file)
                 if [ ! -f "$XDG_CACHE_HOME/opencode/version" ]; then
                   cp "'"$out"'/version" "$XDG_CACHE_HOME/opencode/version"
