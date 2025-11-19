@@ -22,6 +22,7 @@
           name = "k8s-utils";
           paths = with pkgs;
             [
+              argocd
               k9s
               kind
               kubectl

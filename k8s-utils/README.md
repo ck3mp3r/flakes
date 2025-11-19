@@ -11,6 +11,7 @@ This flake bundles the following Kubernetes-related applications:
 - **kubectx** - Fast way to switch between Kubernetes clusters
 - **kustomize** - Kubernetes configuration management tool
 - **helm** (kubernetes-helm) - The Kubernetes package manager
+- **argocd** - Declarative GitOps continuous delivery tool for Kubernetes
 
 ### Development & Testing
 - **kind** - Kubernetes in Docker - local Kubernetes clusters
@@ -95,6 +96,10 @@ helm install my-release ./my-chart
 
 # Apply Kustomize configurations
 kustomize build ./overlays/production | kubectl apply -f -
+
+# Manage GitOps deployments with ArgoCD
+argocd app list
+argocd app sync my-app
 ```
 
 ## Contributing
