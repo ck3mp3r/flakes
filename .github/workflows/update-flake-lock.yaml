@@ -17,7 +17,7 @@ jobs:
       pull-request-number: ${{ steps.create-pr.outputs.pr-number }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -71,7 +71,7 @@ jobs:
     if: ${{ needs.update-base-nixpkgs.outputs.pull-request-number != '' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
