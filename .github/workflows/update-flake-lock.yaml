@@ -130,15 +130,7 @@ jobs:
             echo "No changes to commit"
             echo "has-changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "chore: update all flake locks
-
-Updated after base-nixpkgs merge:
-- k8s-utils
-- mods
-- opencode
-- rustnix
-- slidev
-- topiary-nu"
+            git commit -m "chore: update all flake locks" -m "Updated after base-nixpkgs merge:" -m "- k8s-utils" -m "- mods" -m "- opencode" -m "- rustnix" -m "- slidev" -m "- topiary-nu"
             git push origin "$BRANCH_NAME"
             echo "has-changes=true" >> $GITHUB_OUTPUT
           fi
