@@ -28,43 +28,70 @@ jobs:
         run: |
           use nu-tools *
 
-          print $"(ansi cyan_bold)🔍 Detecting changed flakes...(ansi reset)\n"
+          print $"(ansi cyan_bold)🔍 Detecting flakes...(ansi reset)\n"
 
-          # Get list of changed files in the last commit
-          let changed_files = (git diff --name-only HEAD~1 HEAD | lines)
-
-          print $"Changed files:"
-          $changed_files | each {|f| print $"  • ($f)"}
-          print ""
-
-          # Extract flake directories (top-level directories with flake.nix)
-          let flake_dirs = [base-nixpkgs k8s-utils mods opencode rustnix slidev topiary-nu]
-
-          let changed_flakes = ($changed_files
-            | each {|file|
-                let parts = ($file | split row '/')
-                if ($parts | length) > 0 {
-                  $parts.0
-                } else {
-                  null
+          # Dynamically discover all flake directories
+          let all_flakes = (ls
+            | where type == dir
+            | where name !~ '^\.' # exclude hidden directories like .github
+            | each {|dir|
+                if ($"($dir.name)/flake.nix" | path exists) {
+                  $dir.name
                 }
               }
-            | uniq
-            | where {|dir| $dir in $flake_dirs}
-            | uniq
+            | compact
           )
 
-          if ($changed_flakes | is-empty) {
-            print $"(ansi yellow)⚠ No flake changes detected, skipping build(ansi reset)"
+          print $"Found flakes in repository:"
+          $all_flakes | each {|f| print $"  • ($f)"}
+          print ""
+
+          # Determine which flakes to build based on trigger
+          let flakes_to_build = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
+            print $"(ansi blue)ℹ Manual trigger detected - building ALL flakes(ansi reset)\n"
+            $all_flakes
+          } else {
+            print $"(ansi blue)ℹ Push trigger detected - building only CHANGED flakes(ansi reset)\n"
+
+            # Get list of changed files in the last commit
+            let changed_files = (git diff --name-only HEAD~1 HEAD | lines)
+
+            print $"Changed files:"
+            $changed_files | each {|f| print $"  • ($f)"}
+            print ""
+
+            # Extract flake directories from changed files
+            ($changed_files
+              | each {|file|
+                  let parts = ($file | split row '/')
+                  if ($parts | length) > 0 {
+                    $parts.0
+                  } else {
+                    null
+                  }
+                }
+              | uniq
+              | where {|dir| $dir in $all_flakes}
+              | uniq
+            )
+          }
+
+          # Filter to only existing flake directories (handles deleted flakes)
+          let existing_flakes = ($flakes_to_build
+            | where {|flake| ($flake | path exists) and ($"($flake)/flake.nix" | path exists)}
+          )
+
+          if ($existing_flakes | is-empty) {
+            print $"(ansi yellow)⚠ No flakes to build(ansi reset)"
             exit 0
           }
 
-          print $"(ansi green)✓ Detected changed flakes:(ansi reset)"
-          $changed_flakes | each {|f| print $"  • ($f)"}
+          print $"(ansi green)✓ Flakes to build:(ansi reset)"
+          $existing_flakes | each {|f| print $"  • ($f)"}
           print ""
 
-          # Build and cache each changed flake
-          for flake in $changed_flakes {
+          # Build and cache each flake
+          for flake in $existing_flakes {
             print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)"
             print $"(ansi cyan_bold)📦 Processing flake: ($flake)(ansi reset)"
             print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)\n"
