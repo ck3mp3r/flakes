@@ -12,7 +12,7 @@ jobs:
   # Stage 1: Update base-nixpkgs first (single source of truth)
   update-base-nixpkgs:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     outputs:
       pull-request-number: ${{ steps.create-pr.outputs.pr-number }}
     steps:
@@ -151,3 +151,4 @@ jobs:
           } else {
             print "No changes to flake locks"
           }
+
