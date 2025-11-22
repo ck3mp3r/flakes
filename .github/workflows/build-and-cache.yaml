@@ -1,5 +1,6 @@
 name: build-and-cache
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -11,7 +12,6 @@ permissions:
 jobs:
   build-and-cache:
     runs-on: macos-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -32,7 +32,6 @@ jobs:
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
-          $env.NU_LIB_DIRS = [$"($env.HOME)/.config/nushell/scripts"]
           use nu-tools *
 
           print $"(ansi cyan_bold)🔍 Detecting changed flakes...(ansi reset)\n"
