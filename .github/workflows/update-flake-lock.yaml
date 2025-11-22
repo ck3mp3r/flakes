@@ -14,28 +14,55 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
     outputs:
-      pull-request-number: ${{ steps.update.outputs.pull-request-number }}
+      pull-request-number: ${{ steps.create-pr.outputs.pr-number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: nixbuild/nix-quick-install-action@v28
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create update branch for base-nixpkgs
+        run: |
+          BRANCH_NAME="update-base-nixpkgs-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Update base-nixpkgs flake.lock
-        uses: DeterminateSystems/update-flake-lock@main
-        id: update
-        with:
-          path-to-flake-dir: base-nixpkgs/
-          pr-title: "chore: update base-nixpkgs flake.lock"
-          pr-labels: |
-            dependencies
-            automated
-            base-nixpkgs
+        run: |
+          cd base-nixpkgs
+          nix flake update
+          cd ..
 
-      - name: Enable auto-merge for base-nixpkgs PR
-        if: ${{ steps.update.outputs.pull-request-number != '' }}
-        run: "gh pr merge --auto --squash ${{ steps.update.outputs.pull-request-number }}"
+      - name: Commit and push changes
+        id: commit
+        run: |
+          git add base-nixpkgs/flake.lock
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "chore: update base-nixpkgs flake.lock"
+            git push origin "$BRANCH_NAME"
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR and enable auto-merge
+        id: create-pr
+        if: ${{ steps.commit.outputs.has-changes == 'true' }}
+        run: |
+          PR_URL=$(gh pr create \
+            --title "chore: update base-nixpkgs flake.lock" \
+            --body "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)." \
+            --label "dependencies,automated,base-nixpkgs")
+          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+          echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          gh pr merge --auto --squash "$PR_NUMBER"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -44,21 +71,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: update-base-nixpkgs
     if: ${{ needs.update-base-nixpkgs.outputs.pull-request-number != '' }}
-    strategy:
-      matrix:
-        flake:
-          - k8s-utils
-          - mods
-          - opencode
-          - rustnix
-          - slidev
-          - topiary-nu
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: nixbuild/nix-quick-install-action@v28
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Wait for base-nixpkgs PR to be merged
         run: |
@@ -71,18 +94,50 @@ jobs:
         run: |
           git pull origin main
 
-      - name: Update ${{ matrix.flake }} flake.lock
-        uses: DeterminateSystems/update-flake-lock@main
-        id: update
-        with:
-          path-to-flake-dir: ${{ matrix.flake }}/
-          pr-title: "chore: update ${{ matrix.flake }} flake.lock"
-          pr-labels: |
-            dependencies
-            automated
+      - name: Create update branch for all flakes
+        run: |
+          BRANCH_NAME="update-all-flakes-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
-      - name: Enable auto-merge for ${{ matrix.flake }} PR
-        if: ${{ steps.update.outputs.pull-request-number != '' }}
-        run: "gh pr merge --auto --squash ${{ steps.update.outputs.pull-request-number }}"
+      - name: Update all flake locks
+        run: |
+          for flake in k8s-utils mods opencode rustnix slidev topiary-nu; do
+            echo "Updating $flake..."
+            cd "$flake"
+            nix flake update
+            cd ..
+          done
+
+      - name: Commit and push changes
+        id: commit
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "chore: update all flake locks
+
+Updated after base-nixpkgs merge:
+- k8s-utils
+- mods
+- opencode
+- rustnix
+- slidev
+- topiary-nu"
+            git push origin "$BRANCH_NAME"
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR and enable auto-merge
+        if: ${{ steps.commit.outputs.has-changes == 'true' }}
+        run: |
+          PR_URL=$(gh pr create \
+            --title "chore: update all flake locks" \
+            --body "Automated update of all flake locks after base-nixpkgs was updated and merged. Updated: k8s-utils, mods, opencode, rustnix, slidev, topiary-nu" \
+            --label "dependencies,automated")
+          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+          gh pr merge --auto --squash "$PR_NUMBER"
         env:
           GH_TOKEN: ${{ github.token }}
