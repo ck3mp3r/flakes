@@ -20,49 +20,49 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@v28
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create update branch for base-nixpkgs
-        run: |
-          BRANCH_NAME="update-base-nixpkgs-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH_NAME"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+      - name: Setup Nu Tools
+        uses: ck3mp3r/actions/nu-tools@main
 
       - name: Update base-nixpkgs flake.lock
-        working-directory: base-nixpkgs
-        run: nix flake update
-
-      - name: Commit and push changes
-        id: commit
-        run: |
-          git add base-nixpkgs/flake.lock
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-          else
-            git commit -m "chore: update base-nixpkgs flake.lock"
-            git push origin "$BRANCH_NAME"
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create PR and enable auto-merge
-        id: create-pr
-        if: steps.commit.outputs.has-changes == 'true'
-        run: |
-          PR_URL=$(gh pr create \
-            --title "chore: update base-nixpkgs flake.lock" \
-            --body "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)." \
-            --label "dependencies,automated,base-nixpkgs")
-          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
-          echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          gh pr merge --auto --squash "$PR_NUMBER"
+        shell: nu {0}
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          use nu-tools *
+          
+          setup-git-user
+          
+          let branch_name = $"update-base-nixpkgs-(date now | format date '%Y%m%d-%H%M%S')"
+          
+          # Create and switch to update branch
+          git checkout -b $branch_name
+          
+          # Update flake.lock
+          cd base-nixpkgs
+          nix flake update
+          cd ..
+          
+          # Check if there are changes
+          let has_changes = (git diff --quiet base-nixpkgs/flake.lock | complete | get exit_code) != 0
+          
+          if $has_changes {
+            git add base-nixpkgs/flake.lock
+            git commit -m "chore: update base-nixpkgs flake.lock"
+            git push origin $branch_name
+            
+            # Create PR
+            let pr_url = (gh pr create --title "chore: update base-nixpkgs flake.lock" --body "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)." --label "dependencies,automated,base-nixpkgs" | complete | get stdout | str trim)
+            let pr_number = ($pr_url | split row '/' | last)
+            
+            # Enable auto-merge
+            gh pr merge --auto --squash $pr_number
+            
+            print $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
+          } else {
+            print "No changes to base-nixpkgs flake.lock"
+          }
 
   # Stage 2: Update all other flakes after base-nixpkgs is merged
   update-other-flakes:
@@ -74,75 +74,80 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@v28
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Setup Nu Tools
+        uses: ck3mp3r/actions/nu-tools@main
 
-      - name: Wait for base-nixpkgs PR to be merged
-        run: |
-          echo "Waiting for base-nixpkgs PR #${{ needs.update-base-nixpkgs.outputs.pull-request-number }} to be merged..."
-          timeout 300 bash -c 'until gh pr view ${{ needs.update-base-nixpkgs.outputs.pull-request-number }} --json state --jq .state | grep -q "MERGED"; do echo "Waiting..."; sleep 10; done' || echo "Timeout waiting for merge, continuing anyway..."
+      - name: Update all flakes after base-nixpkgs merge
+        shell: nu {0}
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Pull latest changes after base-nixpkgs merge
+          PR_NUMBER: ${{ needs.update-base-nixpkgs.outputs.pull-request-number }}
         run: |
+          use nu-tools *
+          
+          setup-git-user
+          
+          # Wait for base-nixpkgs PR to be merged
+          print $"Waiting for base-nixpkgs PR #($env.PR_NUMBER) to be merged..."
+          
+          mut timeout = 300
+          mut merged = false
+          
+          while $timeout > 0 {
+            let state = (gh pr view $env.PR_NUMBER --json state --jq .state | complete | get stdout | str trim)
+            if $state == "MERGED" {
+              $merged = true
+              break
+            }
+            print "Waiting..."
+            sleep 10sec
+            $timeout = $timeout - 10
+          }
+          
+          if not $merged {
+            print "Timeout waiting for merge, continuing anyway..."
+          }
+          
+          # Pull latest changes
           git pull origin main
-
-      - name: Create update branch for all flakes
-        run: |
-          BRANCH_NAME="update-all-flakes-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH_NAME"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-
-      - name: Update k8s-utils flake.lock
-        working-directory: k8s-utils
-        run: nix flake update
-
-      - name: Update mods flake.lock
-        working-directory: mods
-        run: nix flake update
-
-      - name: Update opencode flake.lock
-        working-directory: opencode
-        run: nix flake update
-
-      - name: Update rustnix flake.lock
-        working-directory: rustnix
-        run: nix flake update
-
-      - name: Update slidev flake.lock
-        working-directory: slidev
-        run: nix flake update
-
-      - name: Update topiary-nu flake.lock
-        working-directory: topiary-nu
-        run: nix flake update
-
-      - name: Commit and push changes
-        id: commit
-        run: |
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-          else
-            git commit -m "chore: update all flake locks" -m "Updated after base-nixpkgs merge:" -m "- k8s-utils" -m "- mods" -m "- opencode" -m "- rustnix" -m "- slidev" -m "- topiary-nu"
-            git push origin "$BRANCH_NAME"
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create PR and enable auto-merge
-        if: steps.commit.outputs.has-changes == 'true'
-        run: |
-          PR_URL=$(gh pr create \
-            --title "chore: update all flake locks" \
-            --body "Automated update of all flake locks after base-nixpkgs was updated and merged. Updated: k8s-utils, mods, opencode, rustnix, slidev, topiary-nu" \
-            --label "dependencies,automated")
-          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
-          gh pr merge --auto --squash "$PR_NUMBER"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          
+          let branch_name = $"update-all-flakes-(date now | format date '%Y%m%d-%H%M%S')"
+          git checkout -b $branch_name
+          
+          # Update all flakes
+          let flakes = [k8s-utils mods opencode rustnix slidev topiary-nu]
+          
+          for flake in $flakes {
+            print $"Updating ($flake)..."
+            cd $flake
+            nix flake update
+            cd ..
+          }
+          
+          # Check if there are changes
+          let has_changes = (git diff --quiet | complete | get exit_code) != 0
+          
+          if $has_changes {
+            git add -A
+            
+            # Build commit message
+            let files = ["- k8s-utils" "- mods" "- opencode" "- rustnix" "- slidev" "- topiary-nu"]
+            let body = (["Updated after base-nixpkgs merge:"] | append $files | str join "\n")
+            
+            git commit -m "chore: update all flake locks" -m $body
+            git push origin $branch_name
+            
+            # Create PR
+            let pr_body = "Automated update of all flake locks after base-nixpkgs was updated and merged. Updated: k8s-utils, mods, opencode, rustnix, slidev, topiary-nu"
+            let pr_url = (gh pr create --title "chore: update all flake locks" --body $pr_body --label "dependencies,automated" | complete | get stdout | str trim)
+            let pr_number = ($pr_url | split row '/' | last)
+            
+            # Enable auto-merge
+            gh pr merge --auto --squash $pr_number
+            
+            print $"Created and auto-merged PR #($pr_number)"
+          } else {
+            print "No changes to flake locks"
+          }
