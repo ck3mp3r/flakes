@@ -82,6 +82,45 @@
         "type": "github"
       }
     },
+    "opencode-darwin-arm64": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1763790962,
+        "narHash": "sha256-Kx2okzNtqaujTrcaEIZ0bzC9npDbK6xNiNRoATOkjz0=",
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-darwin-arm64.zip"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-darwin-arm64.zip"
+      }
+    },
+    "opencode-linux-arm64": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1763790955,
+        "narHash": "sha256-Wu21wtUo/rOjJZ+aK2nb36cqkLvgf7tcsLWOOACzbu8=",
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-arm64.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-arm64.tar.gz"
+      }
+    },
+    "opencode-linux-x64": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1763790956,
+        "narHash": "sha256-R8dmFC8AmGYsJ3cgQyZ+4Xb26HJ5AfV+cUju0MrBo94=",
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-x64.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-x64.tar.gz"
+      }
+    },
     "root": {
       "inputs": {
         "base-nixpkgs": "base-nixpkgs",
@@ -90,9 +129,9 @@
           "base-nixpkgs",
           "unstable"
         ],
-        "tui-darwin-arm64": "tui-darwin-arm64",
-        "tui-linux-arm64": "tui-linux-arm64",
-        "tui-linux-x64": "tui-linux-x64"
+        "opencode-darwin-arm64": "opencode-darwin-arm64",
+        "opencode-linux-arm64": "opencode-linux-arm64",
+        "opencode-linux-x64": "opencode-linux-x64"
       }
     },
     "stable": {
@@ -109,45 +148,6 @@
         "ref": "nixos-25.05",
         "repo": "nixpkgs",
         "type": "github"
-      }
-    },
-    "tui-darwin-arm64": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1762892008,
-        "narHash": "sha256-kmY8roava/y4FbYiwFlGH3ra+iercayG3aPLv3oOFaQ=",
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-darwin-arm64.zip"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-darwin-arm64.zip"
-      }
-    },
-    "tui-linux-arm64": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1762891999,
-        "narHash": "sha256-l3WPGIW1kDiM+5MtfU/snKb/bsKGQUqHvU3xIR4qfgg=",
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-arm64.zip"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-arm64.zip"
-      }
-    },
-    "tui-linux-x64": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1762892000,
-        "narHash": "sha256-m+XrIts3ENs9B94ZjqnIBJYXvPwKDb762cBCzlMpX34=",
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-x64.zip"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-x64.zip"
       }
     },
     "unstable": {

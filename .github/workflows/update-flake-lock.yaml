@@ -5,6 +5,7 @@ on:
     - cron: "0 0 * * 3" # runs weekly on Wednesday at 00:00
 
 permissions:
+  id-token: write
   contents: write
   pull-requests: write
 
