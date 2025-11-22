@@ -5,18 +5,18 @@
     nixpkgs.follows = "base-nixpkgs/unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
 
-    # TUI binaries from GitHub releases
-    # Update tuiVersion below to change the version for all platforms
-    tui-linux-x64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-x64.zip";
+    # OpenCode and TUI binaries from GitHub releases
+    # Update opencodeVersion below to change the version for all platforms
+    opencode-linux-x64 = {
+      url = "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-x64.tar.gz";
       flake = false;
     };
-    tui-linux-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-arm64.zip";
+    opencode-linux-arm64 = {
+      url = "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-linux-arm64.tar.gz";
       flake = false;
     };
-    tui-darwin-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-darwin-arm64.zip";
+    opencode-darwin-arm64 = {
+      url = "https://github.com/sst/opencode/releases/download/v1.0.98/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -29,28 +29,53 @@
         system,
         ...
       }: let
-        # TUI binary version - update this and the input URLs above when upgrading
-        tuiVersion = "1.0.58";
+        # OpenCode version - update this and the input URLs above when upgrading
+        opencodeVersion = "1.0.98";
 
-        # Map system to the appropriate TUI binary input
-        tuiBinary =
+        # Map system to the appropriate opencode binary input
+        opencodeBinary =
           {
-            "x86_64-linux" = inputs.tui-linux-x64;
-            "aarch64-linux" = inputs.tui-linux-arm64;
-            "aarch64-darwin" = inputs.tui-darwin-arm64;
+            "x86_64-linux" = inputs.opencode-linux-x64;
+            "aarch64-linux" = inputs.opencode-linux-arm64;
+            "aarch64-darwin" = inputs.opencode-darwin-arm64;
           }.${
             system
           } or (throw "Unsupported system: ${system}");
 
+        # Build opencode package from GitHub release binary
+        opencode = pkgs.stdenv.mkDerivation {
+          pname = "opencode";
+          version = opencodeVersion;
+
+          src = opencodeBinary;
+
+          nativeBuildInputs = with pkgs; [unzip];
+
+          dontBuild = true;
+
+          installPhase = ''
+            mkdir -p $out/bin
+            # Find the opencode binary and install it
+            find . -name "opencode" -type f -perm -111 | head -1 | xargs -I {} cp {} $out/bin/opencode
+            chmod +x $out/bin/opencode
+          '';
+
+          meta = {
+            description = "OpenCode CLI - AI coding agent";
+            homepage = "https://github.com/sst/opencode";
+            platforms = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
+          };
+        };
+
         # Derivation that runs opencode to populate the cache
         opencode-cache = pkgs.stdenv.mkDerivation {
           pname = "opencode-cache";
-          version = pkgs.opencode.version;
+          version = opencode.version;
 
           # No source needed, we're just capturing runtime data
           dontUnpack = true;
 
-          nativeBuildInputs = [pkgs.opencode];
+          nativeBuildInputs = [opencode];
 
           buildPhase = ''
             # Set up a fake HOME for opencode to populate
@@ -63,7 +88,10 @@
 
             # Run models command to populate cache with models.json and package.json
             # This will create package.json with the exact versions OpenCode expects
-            timeout 30s ${pkgs.opencode}/bin/opencode models > /dev/null 2>&1 || true
+            timeout 30s ${opencode}/bin/opencode models > /dev/null 2>&1 || true
+
+            # Ensure the cache directory exists (create it if opencode didn't)
+            mkdir -p $XDG_CACHE_HOME/opencode
 
             # OpenCode creates package.json with auth plugins only
             # We need to also install the AI SDK packages that providers use
@@ -97,27 +125,15 @@
 
             # Copy the populated cache from XDG_CACHE_HOME (we control this variable)
             cp -r $XDG_CACHE_HOME/opencode/* $out/
-
-            # Add the pre-downloaded TUI binary from flake input
-            mkdir -p $out/tui
-            echo "Adding TUI binary from: ${tuiBinary}"
-
-            # The TUI binary input is already unpacked by Nix
-            # Find and copy the opencode binary
-            find ${tuiBinary} -name "opencode" -type f -perm -111 | head -1 | xargs -I {} cp {} $out/tui/tui-${tuiVersion}.
-
-            chmod +x $out/tui/tui-${tuiVersion}.
-
-            echo "TUI binary size: $(du -h $out/tui/tui-${tuiVersion}.)"
           '';
         };
 
         # Wrapper package that runs opencode with cache from Nix store
         # The cache must be copied to a writable location because opencode writes to it
         opencode-with-cache = pkgs.symlinkJoin {
-          name = "opencode-with-cache-${pkgs.opencode.version}";
+          name = "opencode-with-cache-${opencode.version}";
 
-          paths = [pkgs.opencode opencode-cache];
+          paths = [opencode opencode-cache];
 
           nativeBuildInputs = [pkgs.makeWrapper];
 
@@ -128,18 +144,16 @@
             fi
 
             # Set XDG_CACHE_HOME to ~/.cache-nix so opencode uses ~/.cache-nix/opencode
-            makeWrapper ${pkgs.opencode}/bin/opencode $out/bin/opencode \
+            makeWrapper ${opencode}/bin/opencode $out/bin/opencode \
               --run 'export XDG_CACHE_HOME="$HOME/.cache-nix"' \
               --run 'mkdir -p "$XDG_CACHE_HOME/opencode"
                 # Always update symlinks to point to current Nix store path
                 # Remove old symlinks/dirs first to ensure clean state
-                rm -f "$XDG_CACHE_HOME/opencode/tui"
                 rm -f "$XDG_CACHE_HOME/opencode/node_modules"
                 rm -f "$XDG_CACHE_HOME/opencode/models.json"
                 rm -f "$XDG_CACHE_HOME/opencode/package.json"
                 rm -f "$XDG_CACHE_HOME/opencode/bun.lock"
                 # Create symlinks to Nix store (read-only resources)
-                ln -s "'"$out"'/tui" "$XDG_CACHE_HOME/opencode/tui"
                 ln -s "'"$out"'/node_modules" "$XDG_CACHE_HOME/opencode/node_modules"
                 ln -s "'"$out"'/package.json" "$XDG_CACHE_HOME/opencode/package.json"
                 ln -s "'"$out"'/bun.lock" "$XDG_CACHE_HOME/opencode/bun.lock"
