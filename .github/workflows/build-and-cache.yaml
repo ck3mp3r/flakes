@@ -81,17 +81,37 @@ jobs:
             | where {|flake| ($flake | path exists) and ($"($flake)/flake.nix" | path exists)}
           )
 
-          if ($existing_flakes | is-empty) {
-            print $"(ansi yellow)⚠ No flakes to build(ansi reset)"
+          # Filter to only flakes that have buildable packages
+          print $"(ansi blue)Checking which flakes have buildable packages...(ansi reset)"
+          let buildable_flakes = ($existing_flakes
+            | each {|flake|
+                try {
+                  let has_packages = (nix flake show $"./($flake)" --json
+                    | from json
+                    | get --optional packages
+                    | default {}
+                    | values
+                    | any {|sys| ($sys | columns | length) > 0}
+                  )
+                  if $has_packages { $flake } else { null }
+                } catch {
+                  null
+                }
+              }
+            | compact
+          )
+
+          if ($buildable_flakes | is-empty) {
+            print $"(ansi yellow)⚠ No flakes with buildable packages found(ansi reset)"
             exit 0
           }
 
           print $"(ansi green)✓ Flakes to build:(ansi reset)"
-          $existing_flakes | each {|f| print $"  • ($f)"}
+          $buildable_flakes | each {|f| print $"  • ($f)"}
           print ""
 
           # Build and cache each flake
-          for flake in $existing_flakes {
+          for flake in $buildable_flakes {
             print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)"
             print $"(ansi cyan_bold)📦 Processing flake: ($flake)(ansi reset)"
             print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)\n"
