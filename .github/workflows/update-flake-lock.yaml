@@ -9,9 +9,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  lockfile:
+  # Stage 1: Update base-nixpkgs first (single source of truth)
+  update-base-nixpkgs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      pull-request-number: ${{ steps.update.outputs.pull-request-number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,17 +22,67 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Update topiary-nu flake.lock
+      - name: Update base-nixpkgs flake.lock
         uses: DeterminateSystems/update-flake-lock@main
         id: update
         with:
-          path-to-flake-dir: topiary-nu/
-          pr-title: "Update topiary-nu flake.lock"
+          path-to-flake-dir: base-nixpkgs/
+          pr-title: "chore: update base-nixpkgs flake.lock"
+          pr-labels: |
+            dependencies
+            automated
+            base-nixpkgs
+
+      - name: Enable auto-merge for base-nixpkgs PR
+        if: ${{ steps.update.outputs.pull-request-number != '' }}
+        run: "gh pr merge --auto --squash ${{ steps.update.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Stage 2: Update all other flakes after base-nixpkgs is merged
+  update-other-flakes:
+    runs-on: ubuntu-latest
+    needs: update-base-nixpkgs
+    if: ${{ needs.update-base-nixpkgs.outputs.pull-request-number != '' }}
+    strategy:
+      matrix:
+        flake:
+          - k8s-utils
+          - mods
+          - opencode
+          - rustnix
+          - slidev
+          - topiary-nu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Wait for base-nixpkgs PR to be merged
+        run: |
+          echo "Waiting for base-nixpkgs PR #${{ needs.update-base-nixpkgs.outputs.pull-request-number }} to be merged..."
+          timeout 300 bash -c 'until gh pr view ${{ needs.update-base-nixpkgs.outputs.pull-request-number }} --json state --jq .state | grep -q "MERGED"; do echo "Waiting..."; sleep 10; done' || echo "Timeout waiting for merge, continuing anyway..."
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Pull latest changes after base-nixpkgs merge
+        run: |
+          git pull origin main
+
+      - name: Update ${{ matrix.flake }} flake.lock
+        uses: DeterminateSystems/update-flake-lock@main
+        id: update
+        with:
+          path-to-flake-dir: ${{ matrix.flake }}/
+          pr-title: "chore: update ${{ matrix.flake }} flake.lock"
           pr-labels: |
             dependencies
             automated
 
-      - name: Automatic Merge
+      - name: Enable auto-merge for ${{ matrix.flake }} PR
+        if: ${{ steps.update.outputs.pull-request-number != '' }}
         run: "gh pr merge --auto --squash ${{ steps.update.outputs.pull-request-number }}"
         env:
           GH_TOKEN: ${{ github.token }}
