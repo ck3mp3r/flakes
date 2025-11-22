@@ -34,10 +34,8 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Update base-nixpkgs flake.lock
-        run: |
-          cd base-nixpkgs
-          nix flake update
-          cd ..
+        working-directory: base-nixpkgs
+        run: nix flake update
 
       - name: Commit and push changes
         id: commit
@@ -54,7 +52,7 @@ jobs:
 
       - name: Create PR and enable auto-merge
         id: create-pr
-        if: ${{ steps.commit.outputs.has-changes == 'true' }}
+        if: steps.commit.outputs.has-changes == 'true'
         run: |
           PR_URL=$(gh pr create \
             --title "chore: update base-nixpkgs flake.lock" \
@@ -100,14 +98,29 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
-      - name: Update all flake locks
-        run: |
-          for flake in k8s-utils mods opencode rustnix slidev topiary-nu; do
-            echo "Updating $flake..."
-            cd "$flake"
-            nix flake update
-            cd ..
-          done
+      - name: Update k8s-utils flake.lock
+        working-directory: k8s-utils
+        run: nix flake update
+
+      - name: Update mods flake.lock
+        working-directory: mods
+        run: nix flake update
+
+      - name: Update opencode flake.lock
+        working-directory: opencode
+        run: nix flake update
+
+      - name: Update rustnix flake.lock
+        working-directory: rustnix
+        run: nix flake update
+
+      - name: Update slidev flake.lock
+        working-directory: slidev
+        run: nix flake update
+
+      - name: Update topiary-nu flake.lock
+        working-directory: topiary-nu
+        run: nix flake update
 
       - name: Commit and push changes
         id: commit
@@ -131,7 +144,7 @@ Updated after base-nixpkgs merge:
           fi
 
       - name: Create PR and enable auto-merge
-        if: ${{ steps.commit.outputs.has-changes == 'true' }}
+        if: steps.commit.outputs.has-changes == 'true'
         run: |
           PR_URL=$(gh pr create \
             --title "chore: update all flake locks" \
