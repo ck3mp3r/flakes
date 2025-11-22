@@ -2,7 +2,7 @@
   description = "A Nix flake with flake-parts, nixpkgs, and Alejandra for formatting.";
 
   inputs = {
-    base-nixpkgs.url = "path:../base-nixpkgs";
+    base-nixpkgs.url = "github:ck3mp3r/flakes?dir=base-nixpkgs";
     nixpkgs.follows = "base-nixpkgs/unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     fenix = {

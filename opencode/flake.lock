@@ -7,14 +7,20 @@
         "unstable": "unstable"
       },
       "locked": {
-        "path": "../base-nixpkgs",
-        "type": "path"
+        "dir": "base-nixpkgs",
+        "lastModified": 1763822234,
+        "narHash": "sha256-zNxCwQtdiP/Ra/DWG/PnR/55inOdrLij4tGzfzMX8U0=",
+        "owner": "ck3mp3r",
+        "repo": "flakes",
+        "rev": "f037cd474da756dcacddf2e598da650542a89e60",
+        "type": "github"
       },
       "original": {
-        "path": "../base-nixpkgs",
-        "type": "path"
-      },
-      "parent": []
+        "dir": "base-nixpkgs",
+        "owner": "ck3mp3r",
+        "repo": "flakes",
+        "type": "github"
+      }
     },
     "flake-parts": {
       "inputs": {

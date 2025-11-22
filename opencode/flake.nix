@@ -1,7 +1,7 @@
 {
   description = "OpenCode with pre-populated cache including TUI binaries";
   inputs = {
-    base-nixpkgs.url = "path:../base-nixpkgs";
+    base-nixpkgs.url = "github:ck3mp3r/flakes?dir=base-nixpkgs";
     nixpkgs.follows = "base-nixpkgs/unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
 
