@@ -1,5 +1,39 @@
 {
   "nodes": {
+    "base-nixpkgs": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "stable": "stable",
+        "unstable": "unstable"
+      },
+      "locked": {
+        "path": "../base-nixpkgs",
+        "type": "path"
+      },
+      "original": {
+        "path": "../base-nixpkgs",
+        "type": "path"
+      },
+      "parent": []
+    },
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1763759067,
+        "narHash": "sha256-LlLt2Jo/gMNYAwOgdRQBrsRoOz7BPRkzvNaI/fzXi2Q=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "2cccadc7357c0ba201788ae99c4dfa90728ef5e0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -18,28 +52,47 @@
         "type": "github"
       }
     },
-    "nixpkgs": {
+    "nixpkgs-lib": {
       "locked": {
-        "lastModified": 1763464769,
-        "narHash": "sha256-AJHrsT7VoeQzErpBRlLJM1SODcaayp0joAoEA35yiwM=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "6f374686605df381de8541c072038472a5ea2e2d",
+        "lastModified": 1761765539,
+        "narHash": "sha256-b0yj6kfvO8ApcSE+QmA6mUfu8IYG6/uU28OFn4PaC8M=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "719359f4562934ae99f5443f20aa06c2ffff91fc",
         "type": "github"
       },
       "original": {
-        "owner": "nixos",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
+        "base-nixpkgs": "base-nixpkgs",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
+        "nixpkgs": [
+          "base-nixpkgs",
+          "unstable"
+        ],
         "topiary-nushell": "topiary-nushell",
         "tree-sitter-nu": "tree-sitter-nu"
+      }
+    },
+    "stable": {
+      "locked": {
+        "lastModified": 1763622513,
+        "narHash": "sha256-1jQnuyu82FpiSxowrF/iFK6Toh9BYprfDqfs4BB+19M=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c58bc7f5459328e4afac201c5c4feb7c818d604b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-25.05",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "systems": {
@@ -86,6 +139,22 @@
       "original": {
         "owner": "nushell",
         "repo": "tree-sitter-nu",
+        "type": "github"
+      }
+    },
+    "unstable": {
+      "locked": {
+        "lastModified": 1763618868,
+        "narHash": "sha256-v5afmLjn/uyD9EQuPBn7nZuaZVV9r+JerayK/4wvdWA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a8d610af3f1a5fb71e23e08434d8d61a466fc942",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
         "type": "github"
       }
     }

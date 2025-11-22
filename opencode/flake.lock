@@ -1,15 +1,31 @@
 {
   "nodes": {
+    "base-nixpkgs": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "stable": "stable",
+        "unstable": "unstable"
+      },
+      "locked": {
+        "path": "../base-nixpkgs",
+        "type": "path"
+      },
+      "original": {
+        "path": "../base-nixpkgs",
+        "type": "path"
+      },
+      "parent": []
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
       },
       "locked": {
-        "lastModified": 1762810396,
-        "narHash": "sha256-dxFVgQPG+R72dkhXTtqUm7KpxElw3u6E+YlQ2WaDgt8=",
+        "lastModified": 1763759067,
+        "narHash": "sha256-LlLt2Jo/gMNYAwOgdRQBrsRoOz7BPRkzvNaI/fzXi2Q=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "0bdadb1b265fb4143a75bd1ec7d8c915898a9923",
+        "rev": "2cccadc7357c0ba201788ae99c4dfa90728ef5e0",
         "type": "github"
       },
       "original": {
@@ -18,19 +34,21 @@
         "type": "github"
       }
     },
-    "nixpkgs": {
+    "flake-parts_2": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib_2"
+      },
       "locked": {
-        "lastModified": 1762604901,
-        "narHash": "sha256-Pr2jpryIaQr9Yx8p6QssS03wqB6UifnnLr3HJw9veDw=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "f6b44b2401525650256b977063dbcf830f762369",
+        "lastModified": 1763759067,
+        "narHash": "sha256-LlLt2Jo/gMNYAwOgdRQBrsRoOz7BPRkzvNaI/fzXi2Q=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "2cccadc7357c0ba201788ae99c4dfa90728ef5e0",
         "type": "github"
       },
       "original": {
-        "owner": "nixos",
-        "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
         "type": "github"
       }
     },
@@ -49,13 +67,48 @@
         "type": "github"
       }
     },
+    "nixpkgs-lib_2": {
+      "locked": {
+        "lastModified": 1761765539,
+        "narHash": "sha256-b0yj6kfvO8ApcSE+QmA6mUfu8IYG6/uU28OFn4PaC8M=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "719359f4562934ae99f5443f20aa06c2ffff91fc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
-        "flake-parts": "flake-parts",
-        "nixpkgs": "nixpkgs",
+        "base-nixpkgs": "base-nixpkgs",
+        "flake-parts": "flake-parts_2",
+        "nixpkgs": [
+          "base-nixpkgs",
+          "unstable"
+        ],
         "tui-darwin-arm64": "tui-darwin-arm64",
         "tui-linux-arm64": "tui-linux-arm64",
         "tui-linux-x64": "tui-linux-x64"
+      }
+    },
+    "stable": {
+      "locked": {
+        "lastModified": 1763622513,
+        "narHash": "sha256-1jQnuyu82FpiSxowrF/iFK6Toh9BYprfDqfs4BB+19M=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "c58bc7f5459328e4afac201c5c4feb7c818d604b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-25.05",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "tui-darwin-arm64": {
@@ -95,6 +148,22 @@
       "original": {
         "type": "tarball",
         "url": "https://github.com/sst/opencode/releases/download/v1.0.58/opencode-linux-x64.zip"
+      }
+    },
+    "unstable": {
+      "locked": {
+        "lastModified": 1763618868,
+        "narHash": "sha256-v5afmLjn/uyD9EQuPBn7nZuaZVV9r+JerayK/4wvdWA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a8d610af3f1a5fb71e23e08434d8d61a466fc942",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     }
   },
