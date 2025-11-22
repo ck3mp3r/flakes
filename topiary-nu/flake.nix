@@ -1,7 +1,8 @@
 {
   description = "This flake wraps the topiary formatting functionality.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    base-nixpkgs.url = "path:../base-nixpkgs";
+    nixpkgs.follows = "base-nixpkgs/unstable";
     flake-utils.url = "github:numtide/flake-utils";
     tree-sitter-nu = {
       url = "github:nushell/tree-sitter-nu";

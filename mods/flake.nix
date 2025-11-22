@@ -1,7 +1,8 @@
 {
   description = "This flake wraps the charmbracelet/mods cli.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    base-nixpkgs.url = "path:../base-nixpkgs";
+    nixpkgs.follows = "base-nixpkgs/unstable";
     flake-utils.url = "github:numtide/flake-utils";
     mods-src = {
       url = "github:charmbracelet/mods";

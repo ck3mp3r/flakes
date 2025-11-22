@@ -1,7 +1,8 @@
 {
   description = "This brings in clis and utilities related to kubernetes.";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    base-nixpkgs.url = "path:../base-nixpkgs";
+    nixpkgs.follows = "base-nixpkgs/unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
   outputs = {

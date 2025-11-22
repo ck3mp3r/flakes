@@ -2,7 +2,8 @@
   description = "Slidev - Presentation slides for developers";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    base-nixpkgs.url = "path:../base-nixpkgs";
+    nixpkgs.follows = "base-nixpkgs/unstable";
     flake-utils.url = "github:numtide/flake-utils";
     devshell = {
       url = "github:numtide/devshell";
