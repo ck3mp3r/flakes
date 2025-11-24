@@ -147,21 +147,21 @@
             makeWrapper ${opencode}/bin/opencode $out/bin/opencode \
               --run 'export XDG_CACHE_HOME="$HOME/.cache-nix"' \
               --run 'mkdir -p "$XDG_CACHE_HOME/opencode"
-                # Always update symlinks to point to current Nix store path
-                # Remove old symlinks/dirs first to ensure clean state
-                rm -f "$XDG_CACHE_HOME/opencode/node_modules"
-                rm -f "$XDG_CACHE_HOME/opencode/models.json"
-                rm -f "$XDG_CACHE_HOME/opencode/package.json"
-                rm -f "$XDG_CACHE_HOME/opencode/bun.lock"
-                # Create symlinks to Nix store (read-only resources)
-                ln -s "'"$out"'/node_modules" "$XDG_CACHE_HOME/opencode/node_modules"
-                ln -s "'"$out"'/package.json" "$XDG_CACHE_HOME/opencode/package.json"
-                ln -s "'"$out"'/bun.lock" "$XDG_CACHE_HOME/opencode/bun.lock"
-                # Copy models.json (needs to be writable)
-                cp "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
-                # Only copy version if it does not exist (writable file)
-                if [ ! -f "$XDG_CACHE_HOME/opencode/version" ]; then
-                  cp "'"$out"'/version" "$XDG_CACHE_HOME/opencode/version"
+                # Only recreate symlinks if they point to wrong Nix store path
+                if [ ! -L "$XDG_CACHE_HOME/opencode/node_modules" ] || [ "$(readlink "$XDG_CACHE_HOME/opencode/node_modules")" != "'"$out"'/node_modules" ]; then
+                  rm -f "$XDG_CACHE_HOME/opencode/node_modules" \
+                        "$XDG_CACHE_HOME/opencode/package.json" \
+                        "$XDG_CACHE_HOME/opencode/bun.lock" \
+                        "$XDG_CACHE_HOME/opencode/version"
+                  ln -s "'"$out"'/node_modules" "$XDG_CACHE_HOME/opencode/node_modules"
+                  ln -s "'"$out"'/package.json" "$XDG_CACHE_HOME/opencode/package.json"
+                  ln -s "'"$out"'/bun.lock" "$XDG_CACHE_HOME/opencode/bun.lock"
+                  ln -s "'"$out"'/version" "$XDG_CACHE_HOME/opencode/version"
+                fi
+                # Only copy models.json on first run (it updates itself afterward)
+                if [ ! -f "$XDG_CACHE_HOME/opencode/models.json" ]; then
+                  cp "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
+                  chmod +w "$XDG_CACHE_HOME/opencode/models.json"
                 fi'
           '';
         };
