@@ -51,6 +51,11 @@ jobs:
           print "Contents:"
           open --raw $config_file
 
+      - name: Debug - Check NU_LIB_DIRS value
+        shell: nu -l {0}
+        run: |
+          print $"NU_LIB_DIRS: ($env.NU_LIB_DIRS)"
+
       - name: Check CI Tools
         shell: nu -l {0}
         run: |
