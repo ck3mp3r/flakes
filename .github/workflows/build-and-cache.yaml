@@ -38,6 +38,6 @@ jobs:
       - name: Check CI Tools
         shell: nu {0}
         env:
-          NU_LIB_DIRS: ${{ runner.temp }}/../.nix-profile/share/nu-modules
+          NU_LIB_DIRS: ${{ runner.home }}/.nix-profile/share/nu-modules
         run: |
           use ci
