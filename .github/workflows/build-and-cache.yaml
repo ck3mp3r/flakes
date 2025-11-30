@@ -13,7 +13,7 @@ jobs:
   build-and-cache:
     runs-on: macos-15
     env:
-      XDG_CONFIG_HOME: ${{ github.workspace }}/.config
+      XDG_CONFIG_HOME: /Users/runner/.config
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
