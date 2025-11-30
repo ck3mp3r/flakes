@@ -54,6 +54,5 @@ jobs:
       - name: Check CI Tools
         shell: nu -l {0}
         run: |
-          print $"NU_LIB_DIRS: ($env.NU_LIB_DIRS)"
           use ci
           print "✓ CI module loaded successfully"
