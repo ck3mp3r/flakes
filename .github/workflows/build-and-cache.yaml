@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-cache:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -43,9 +43,9 @@ jobs:
           mkdir $nu.default-config-dir
           let config_file = [$nu.default-config-dir config.nu] | path join
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
-          
+
           $'const NU_LIB_DIRS = ["($nix_modules_dir)"]' | save -a $config_file
-          
+
           print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS constant in ($config_file)"
 
       - name: Check CI Tools
