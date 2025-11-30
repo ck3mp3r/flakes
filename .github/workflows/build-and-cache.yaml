@@ -20,6 +20,8 @@ jobs:
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+        with:
+          determinate: false  # Disable FlakeHub login to avoid auth errors
 
       # - name: Setup Nix cache
       #   uses: DeterminateSystems/magic-nix-cache-action@main
@@ -32,23 +34,9 @@ jobs:
           nix profile add nixpkgs#nushell
           nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
 
-      - name: Debug - Find where ci module is installed
-        run: |
-          echo "=== Nix profile list ==="
-          nix profile list
-          echo ""
-          echo "=== Content of ci package ==="
-          CI_PATH=$(nix profile list | grep "Store paths:" | grep ci | awk '{print $3}')
-          echo "CI package path: $CI_PATH"
-          find "$CI_PATH" -type f 2>/dev/null || echo "Can't find files"
-          echo ""
-          echo "=== Checking .nix-profile structure ==="
-          ls -la $HOME/.nix-profile/ 2>/dev/null || echo "No .nix-profile"
-          ls -la $HOME/.nix-profile/share 2>/dev/null || echo "No share directory"
-
       - name: Check CI Tools
         shell: nu {0}
         env:
-          NU_LIB_DIRS: $HOME/.nix-profile/share/nu-modules
+          NU_LIB_DIRS: $HOME/.nix-profile/share/nushell/modules/
         run: |
           use ci
