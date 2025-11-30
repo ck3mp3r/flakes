@@ -40,6 +40,7 @@ jobs:
       - name: Setup Nushell Environment
         shell: nu {0}
         run: |
+          mkdir $nu.default-config-dir
           let config_file = [$nu.default-config-dir config.nu] | path join
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
 
