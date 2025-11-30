@@ -70,16 +70,16 @@ jobs:
             open --raw $env_file
           }
 
-      - name: Debug - Check NU_LIB_DIRS without login flag
+      - name: Debug - Check NU_LIB_DIRS without env-config
         shell: nu {0}
         run: |
-          print "NU_LIB_DIRS without -l:"
+          print "NU_LIB_DIRS without --env-config:"
           print $env.NU_LIB_DIRS
 
-      - name: Debug - Check NU_LIB_DIRS with login flag
-        shell: nu -l {0}
+      - name: Debug - Check NU_LIB_DIRS with env-config
+        shell: nu --env-config /Users/runner/.config/nushell/env.nu {0}
         run: |
-          print "NU_LIB_DIRS with -l:"
+          print "NU_LIB_DIRS with --env-config:"
           print $env.NU_LIB_DIRS
 
       - name: Check CI Tools
