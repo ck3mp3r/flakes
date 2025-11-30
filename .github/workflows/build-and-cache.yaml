@@ -37,4 +37,5 @@ jobs:
         env:
           NU_LIB_DIRS: $HOME/.nix-profile/share/nu-modules
         run: |
+          ls /Users/runner/.nix-profile/share/nu-modules
           use ci
