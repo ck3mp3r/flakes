@@ -83,7 +83,7 @@ jobs:
           print $env.NU_LIB_DIRS
 
       - name: Check CI Tools
-        shell: nu -l {0}
+        shell: nu --env-config /Users/runner/.config/nushell/env.nu {0}
         run: |
           use ci
           print "✓ CI module loaded successfully"
