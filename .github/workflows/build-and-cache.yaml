@@ -52,38 +52,11 @@ jobs:
           ]"
 
           $env_content | save $env_file
+          print "✓ Created env.nu with NU_LIB_DIRS configuration"
 
-          print $"✓ Created env.nu: ($env_file)"
-          print "Contents:"
-          open --raw $env_file
-
-      - name: Debug - Verify env.nu location and contents
-        shell: nu {0}
-        run: |
-          print $"XDG_CONFIG_HOME: ($env.XDG_CONFIG_HOME)"
-          print $"nu.default-config-dir: ($nu.default-config-dir)"
-          let env_file = [$nu.default-config-dir env.nu] | path join
-          print $"Expected env.nu location: ($env_file)"
-          print $"env.nu exists: ($env_file | path exists)"
-          if ($env_file | path exists) {
-            print "env.nu contents:"
-            open --raw $env_file
-          }
-
-      - name: Debug - Check NU_LIB_DIRS without env-config
-        shell: nu {0}
-        run: |
-          print "NU_LIB_DIRS without --env-config:"
-          print $env.NU_LIB_DIRS
-
-      - name: Debug - Check NU_LIB_DIRS with env-config
-        shell: nu --env-config /Users/runner/.config/nushell/env.nu {0}
-        run: |
-          print "NU_LIB_DIRS with --env-config:"
-          print $env.NU_LIB_DIRS
-
-      - name: Check CI Tools
+      - name: Build and Cache Flakes
         shell: nu --env-config /Users/runner/.config/nushell/env.nu {0}
         run: |
           use ci
-          print "✓ CI module loaded successfully"
+          # TODO: Add actual build and cache logic here
+          print "✓ CI module loaded - ready to build and cache"
