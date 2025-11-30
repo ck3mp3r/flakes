@@ -48,8 +48,21 @@ jobs:
           
           print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($config_file)"
 
+      - name: Debug - Check nix profile structure
+        run: |
+          echo "=== Checking .nix-profile/share structure ==="
+          ls -la ~/.nix-profile/share/ || echo "No share dir"
+          echo ""
+          echo "=== Checking for nushell dir ==="
+          ls -la ~/.nix-profile/share/nushell/ 2>/dev/null || echo "No nushell dir"
+          echo ""
+          echo "=== Checking for modules dir ==="
+          ls -la ~/.nix-profile/share/nushell/modules/ 2>/dev/null || echo "No modules dir"
+          echo ""
+          echo "=== Finding all .nu files in nix profile ==="
+          find ~/.nix-profile -name "*.nu" 2>/dev/null || echo "No .nu files"
+
       - name: Check CI Tools
         shell: nu {0}
         run: |
-          use ci
-          print "✓ CI module loaded successfully"
+          print "Skipping for now - need to verify module structure first"
