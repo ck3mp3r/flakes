@@ -40,14 +40,13 @@ jobs:
       - name: Setup Nushell Environment
         shell: nu {0}
         run: |
-          let env_file = [$nu.default-config-dir env.nu] | path join
+          mkdir $nu.default-config-dir
+          let config_file = [$nu.default-config-dir config.nu] | path join
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
           
-          mkdir $nu.default-config-dir
+          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save -a $config_file
           
-          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save -a $env_file
-          
-          print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($env_file)"
+          print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($config_file)"
 
       - name: Check CI Tools
         shell: nu {0}
