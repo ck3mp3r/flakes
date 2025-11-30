@@ -60,12 +60,14 @@ jobs:
       - name: Debug - Check NU_LIB_DIRS without login flag
         shell: nu {0}
         run: |
-          print $"NU_LIB_DIRS (no -l): ($env.NU_LIB_DIRS)"
+          print "NU_LIB_DIRS without -l:"
+          print $env.NU_LIB_DIRS
 
       - name: Debug - Check NU_LIB_DIRS with login flag
         shell: nu -l {0}
         run: |
-          print $"NU_LIB_DIRS (with -l): ($env.NU_LIB_DIRS)"
+          print "NU_LIB_DIRS with -l:"
+          print $env.NU_LIB_DIRS
 
       - name: Check CI Tools
         shell: nu -l {0}
