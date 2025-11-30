@@ -37,14 +37,14 @@ jobs:
           echo "=== Nix profile list ==="
           nix profile list
           echo ""
-          echo "=== Searching for nu-modules ==="
-          find /nix/store -name "nu-modules" -type d 2>/dev/null | head -20 || true
+          echo "=== Content of ci package ==="
+          CI_PATH=$(nix profile list | grep "Store paths:" | grep ci | awk '{print $3}')
+          echo "CI package path: $CI_PATH"
+          find "$CI_PATH" -type f 2>/dev/null || echo "Can't find files"
           echo ""
-          echo "=== Checking profile symlinks ==="
+          echo "=== Checking .nix-profile structure ==="
           ls -la $HOME/.nix-profile/ 2>/dev/null || echo "No .nix-profile"
-          echo ""
-          echo "=== Searching for ci module specifically ==="
-          find /nix/store -path "*/share/nu-modules/ci" -type d 2>/dev/null | head -5 || true
+          ls -la $HOME/.nix-profile/share 2>/dev/null || echo "No share directory"
 
       - name: Check CI Tools
         shell: nu {0}
