@@ -44,8 +44,8 @@ jobs:
           let config_file = [$nu.default-config-dir config.nu] | path join
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
           
-          # Write to config.nu using $env not const - properly interpolate the path
-          $"$env.NU_LIB_DIRS = \($env.NU_LIB_DIRS? | default [] | append \"($nix_modules_dir)\" | uniq\)" | save $config_file
+          # Copy EXACTLY what nu-tools does
+          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save -a $config_file
           
           print $"✓ Wrote to config.nu: ($config_file)"
           print "Contents:"
