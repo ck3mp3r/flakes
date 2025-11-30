@@ -27,12 +27,9 @@ jobs:
           use-flakehub: false
           use-gha-cache: true
 
-      - name: Install Nushell
+      - name: Install Nushell and CI module
         run: |
           nix profile add nixpkgs#nushell
-
-      - name: Install CI Tools
-        run: |
           nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
 
       - name: Check CI Tools
