@@ -21,7 +21,7 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
         with:
-          determinate: false  # Disable FlakeHub login to avoid auth errors
+          determinate: false # Disable FlakeHub login to avoid auth errors
 
       # - name: Setup Nix cache
       #   uses: DeterminateSystems/magic-nix-cache-action@main
@@ -34,9 +34,17 @@ jobs:
           nix profile add nixpkgs#nushell
           nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
 
+      - name: Setup Nushell Environment
+        shell: nu {0}
+        run: |
+          let config_file = [$nu.default-config-dir config.nu] | path join
+          let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
+
+          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save -a $config_file
+
+          print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($config_file)"
+
       - name: Check CI Tools
         shell: nu {0}
-        env:
-          NU_LIB_DIRS: $HOME/.nix-profile/share/nushell/modules/
         run: |
           use ci
