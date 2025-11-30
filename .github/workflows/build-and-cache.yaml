@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-and-cache:
     runs-on: macos-15
+    env:
+      XDG_CONFIG_HOME: ${{ github.workspace }}/.config
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -40,6 +42,9 @@ jobs:
       - name: Setup Nushell Environment
         shell: nu {0}
         run: |
+          print $"XDG_CONFIG_HOME: ($env.XDG_CONFIG_HOME)"
+          print $"nu.default-config-dir: ($nu.default-config-dir)"
+          
           mkdir $nu.default-config-dir
           let config_file = [$nu.default-config-dir config.nu] | path join
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
