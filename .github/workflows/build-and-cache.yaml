@@ -49,7 +49,7 @@ jobs:
           print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($config_file)"
 
       - name: Check CI Tools
-        shell: nu {0}
+        shell: nu --config "$HOME/Library/Application Support/nushell/config.nu" {0}
         run: |
-          const config_file = [$nu.default-config-dir config.nu] | path join
-          nu --config $config_file -c "use ci; print '✓ CI module loaded successfully'"
+          use ci
+          print "✓ CI module loaded successfully"
