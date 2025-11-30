@@ -60,9 +60,12 @@ jobs:
               let pr_url = ($pr_result.stdout | str trim)
               let pr_number = ($pr_url | split row '/' | last)
 
-              # Enable auto-merge
-              gh pr merge --auto --squash $pr_number
-
+              print $"Created PR #($pr_number): ($pr_url)"
+              
+              # Merge PR immediately (auto-merge requires branch protection)
+              print $"Merging PR #($pr_number)..."
+              gh pr merge --squash --delete-branch $pr_number
+              
               print $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
             } else {
               print $"Failed to create PR: ($pr_result.stderr)"
@@ -155,10 +158,11 @@ jobs:
               let pr_url = ($pr_result.stdout | str trim)
               let pr_number = ($pr_url | split row '/' | last)
 
-              # Enable auto-merge
-              gh pr merge --auto --squash $pr_number
-
-              print $"Created and auto-merged PR #($pr_number)"
+              print $"Created PR #($pr_number): ($pr_url)"
+              
+              # Merge PR immediately (auto-merge requires branch protection)
+              print $"Merging PR #($pr_number)..."
+              gh pr merge --squash --delete-branch $pr_number
             } else {
               print $"Failed to create PR: ($pr_result.stderr)"
               exit 1
