@@ -37,18 +37,20 @@ jobs:
           # Verify installation
           nu --version
 
-      - name: Debug - Find CI module structure
+      - name: Setup Nushell Environment
+        shell: nu {0}
         run: |
-          echo "=== Finding ci module installation ==="
-          find ~/.nix-profile -name "ci" -o -name "*.nu" 2>/dev/null | head -20 || true
-          echo ""
-          echo "=== Nix profile contents ==="
-          ls -la ~/.nix-profile/share/ 2>/dev/null || echo "No share directory"
-          echo ""
-          echo "=== Check nushell modules dir ==="
-          ls -la ~/.nix-profile/share/nushell/ 2>/dev/null || echo "No nushell directory"
+          let env_file = [$nu.default-config-dir env.nu] | path join
+          let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
+          
+          mkdir $nu.default-config-dir
+          
+          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save -a $env_file
+          
+          print $"✓ Added ($nix_modules_dir) to NU_LIB_DIRS in ($env_file)"
 
       - name: Check CI Tools
         shell: nu {0}
         run: |
-          print "This will fail - need to find the actual module location first"
+          use ci
+          print "✓ CI module loaded successfully"
