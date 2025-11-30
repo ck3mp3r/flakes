@@ -13,6 +13,7 @@ jobs:
   build-and-cache:
     runs-on: macos-15
     env:
+      NU_LIB_DIRS: /Users/runner/.nix-profile/share/nushell/modules
       XDG_CONFIG_HOME: /Users/runner/.config
     steps:
       - name: Checkout repository
@@ -39,22 +40,10 @@ jobs:
           # Verify installation
           nu --version
 
-      - name: Setup Nushell Environment
+      - name: Debug - Check NU_LIB_DIRS value
         shell: nu {0}
         run: |
-          print $"XDG_CONFIG_HOME: ($env.XDG_CONFIG_HOME)"
-          print $"nu.default-config-dir: ($nu.default-config-dir)"
-          
-          mkdir $nu.default-config-dir
-          let config_file = [$nu.default-config-dir config.nu] | path join
-          let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
-          
-          # Build the config content with proper string concatenation to avoid nested interpolation
-          "$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append \"" + $nix_modules_dir + "\" | uniq)" | save -a $config_file
-          
-          print $"✓ Wrote to config.nu: ($config_file)"
-          print "Contents:"
-          open --raw $config_file
+          print $"NU_LIB_DIRS: ($env.NU_LIB_DIRS)"
 
       - name: Debug - Check NU_LIB_DIRS value
         shell: nu -l {0}
