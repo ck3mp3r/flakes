@@ -37,11 +37,23 @@ jobs:
           # Verify installation
           nu --version
 
-      - name: Check CI Tools
+      - name: Setup Nushell Environment
         shell: nu {0}
-        env:
-          NU_LIB_DIRS: /Users/runner/.nix-profile/share/nushell/modules/
         run: |
-          print $"NU_LIB_DIRS from env: ($env.NU_LIB_DIRS)"
+          mkdir $nu.default-config-dir
+          let config_file = [$nu.default-config-dir config.nu] | path join
+          let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
+          
+          # Write to config.nu using $env not const
+          $'$env.NU_LIB_DIRS = ($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq)' | save $config_file
+          
+          print $"✓ Wrote to config.nu: ($config_file)"
+          print "Contents:"
+          open --raw $config_file
+
+      - name: Check CI Tools
+        shell: nu -l {0}
+        run: |
+          print $"NU_LIB_DIRS: ($env.NU_LIB_DIRS)"
           use ci
           print "✓ CI module loaded successfully"
