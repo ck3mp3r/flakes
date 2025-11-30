@@ -52,13 +52,13 @@ jobs:
         shell: nu {0}
         run: |
           print "=== Nushell Constants ==="
-          print $"NU_LIB_DIRS constant: (NU_LIB_DIRS)"
+          print $"NU_LIB_DIRS constant: \(NU_LIB_DIRS)"
           print ""
           print "=== Environment Variable ==="
-          print $"NU_LIB_DIRS env: ($env.NU_LIB_DIRS?)"
+          print $"NU_LIB_DIRS env: \($env.NU_LIB_DIRS?)"
           print ""
           print "=== Config file location ==="
-          print $"Config dir: ($nu.default-config-dir)"
+          print $"Config dir: \($nu.default-config-dir)"
           print ""
           print "=== Config file contents ==="
           let config_file = [$nu.default-config-dir config.nu] | path join
