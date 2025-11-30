@@ -18,117 +18,23 @@ jobs:
         with:
           fetch-depth: 2 # Need to fetch at least 2 commits to compare
 
-      - name: Setup Nu Tools
-        uses: ck3mp3r/actions/nu-tools@main
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Detect changed flakes and build to cache
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install Nushell
+        run: |
+          nix profile add nixpkgs#nushell
+
+      - name: Install CI Tools
+        run: |
+          nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
+
+      - name: Check CI Tools
         shell: nu {0}
         env:
-          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          NU_LIB_DIRS: ${{ format('{0}/.nix-profile/share/nu-modules', env.HOME) }}
         run: |
-          use nu-tools *
-
-          print $"(ansi cyan_bold)🔍 Detecting flakes...(ansi reset)\n"
-
-          # Dynamically discover all flake directories
-          let all_flakes = (ls
-            | where type == dir
-            | where name !~ '^\.' # exclude hidden directories like .github
-            | each {|dir|
-                if ($"($dir.name)/flake.nix" | path exists) {
-                  $dir.name
-                }
-              }
-            | compact
-          )
-
-          print $"Found flakes in repository:"
-          $all_flakes | each {|f| print $"  • ($f)"}
-          print ""
-
-          # Determine which flakes to build based on trigger
-          let flakes_to_build = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
-            print $"(ansi blue)ℹ Manual trigger detected - building ALL flakes(ansi reset)\n"
-            $all_flakes
-          } else {
-            print $"(ansi blue)ℹ Push trigger detected - building only CHANGED flakes(ansi reset)\n"
-
-            # Get list of changed files in the last commit
-            let changed_files = (git diff --name-only HEAD~1 HEAD | lines)
-
-            print $"Changed files:"
-            $changed_files | each {|f| print $"  • ($f)"}
-            print ""
-
-            # Extract flake directories from changed files
-            ($changed_files
-              | each {|file|
-                  let parts = ($file | split row '/')
-                  if ($parts | length) > 0 {
-                    $parts.0
-                  } else {
-                    null
-                  }
-                }
-              | uniq
-              | where {|dir| $dir in $all_flakes}
-              | uniq
-            )
-          }
-
-          # Filter to only existing flake directories (handles deleted flakes)
-          let existing_flakes = ($flakes_to_build
-            | where {|flake| ($flake | path exists) and ($"($flake)/flake.nix" | path exists)}
-          )
-
-          # Filter to only flakes that have buildable packages
-          print $"(ansi blue)Checking which flakes have buildable packages...(ansi reset)"
-          let buildable_flakes = ($existing_flakes
-            | each {|flake|
-                try {
-                  let has_packages = (nix flake show $"./($flake)" --json
-                    | from json
-                    | get --optional packages
-                    | default {}
-                    | values
-                    | any {|sys| ($sys | columns | length) > 0}
-                  )
-                  if $has_packages { $flake } else { null }
-                } catch {
-                  null
-                }
-              }
-            | compact
-          )
-
-          if ($buildable_flakes | is-empty) {
-            print $"(ansi yellow)⚠ No flakes with buildable packages found(ansi reset)"
-            exit 0
-          }
-
-          print $"(ansi green)✓ Flakes to build:(ansi reset)"
-          $buildable_flakes | each {|f| print $"  • ($f)"}
-          print ""
-
-          # Build and cache each flake
-          for flake in $buildable_flakes {
-            print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)"
-            print $"(ansi cyan_bold)📦 Processing flake: ($flake)(ansi reset)"
-            print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)\n"
-
-            try {
-              # Build flake from the flake directory
-              cd $flake
-              publish-to-cachix ck3mp3r --flake ".#"
-              cd ..
-            } catch {|err|
-              print $"(ansi red_bold)❌ Failed to build/cache ($flake):(ansi reset)"
-              print $err
-              print $"(ansi yellow)⚠ Continuing with next flake...(ansi reset)\n"
-              cd ..
-            }
-
-            print ""
-          }
-
-          print $"(ansi green_bold)✅ Build and cache workflow completed!(ansi reset)"
+          use ci
