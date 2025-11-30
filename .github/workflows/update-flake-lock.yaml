@@ -66,7 +66,7 @@ jobs:
               print $"Merging PR #($pr_number)..."
               gh pr merge --squash --delete-branch $pr_number
               
-              print $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
+              $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
             } else {
               print $"Failed to create PR: ($pr_result.stderr)"
               exit 1
