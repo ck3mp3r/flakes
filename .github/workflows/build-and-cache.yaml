@@ -21,7 +21,7 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
         with:
-          determinate: false # Disable FlakeHub login to avoid auth errors
+          determinate: false
 
       # - name: Setup Nix cache
       #   uses: DeterminateSystems/magic-nix-cache-action@main
@@ -33,6 +33,9 @@ jobs:
         run: |
           nix profile add nixpkgs#nushell
           nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
+
+          # Verify installation
+          nu --version
 
       - name: Setup Nushell Environment
         shell: nu {0}
