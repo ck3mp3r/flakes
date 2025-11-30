@@ -54,13 +54,20 @@ jobs:
             git push origin $branch_name
 
             # Create PR
-            let pr_url = (gh pr create --title "chore: update base-nixpkgs flake.lock" --body "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)." --label "dependencies,automated,base-nixpkgs" | complete | get stdout | str trim)
-            let pr_number = ($pr_url | split row '/' | last)
+            let pr_result = (gh pr create --title "chore: update base-nixpkgs flake.lock" --body "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)." --label "dependencies,automated,base-nixpkgs" | complete)
+            
+            if $pr_result.exit_code == 0 {
+              let pr_url = ($pr_result.stdout | str trim)
+              let pr_number = ($pr_url | split row '/' | last)
 
-            # Enable auto-merge
-            gh pr merge --auto --squash $pr_number
+              # Enable auto-merge
+              gh pr merge --auto --squash $pr_number
 
-            print $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
+              print $"pr-number=($pr_number)" | save --append $env.GITHUB_OUTPUT
+            } else {
+              print $"Failed to create PR: ($pr_result.stderr)"
+              exit 1
+            }
           } else {
             print "No changes to base-nixpkgs flake.lock"
           }
@@ -142,13 +149,20 @@ jobs:
 
             # Create PR
             let pr_body = "Automated update of all flake locks after base-nixpkgs was updated and merged. Updated: k8s-utils, mods, opencode, rustnix, slidev, topiary-nu"
-            let pr_url = (gh pr create --title "chore: update all flake locks" --body $pr_body --label "dependencies,automated" | complete | get stdout | str trim)
-            let pr_number = ($pr_url | split row '/' | last)
+            let pr_result = (gh pr create --title "chore: update all flake locks" --body $pr_body --label "dependencies,automated" | complete)
+            
+            if $pr_result.exit_code == 0 {
+              let pr_url = ($pr_result.stdout | str trim)
+              let pr_number = ($pr_url | split row '/' | last)
 
-            # Enable auto-merge
-            gh pr merge --auto --squash $pr_number
+              # Enable auto-merge
+              gh pr merge --auto --squash $pr_number
 
-            print $"Created and auto-merged PR #($pr_number)"
+              print $"Created and auto-merged PR #($pr_number)"
+            } else {
+              print $"Failed to create PR: ($pr_result.stderr)"
+              exit 1
+            }
           } else {
             print "No changes to flake locks"
           }
