@@ -32,10 +32,23 @@ jobs:
           nix profile add nixpkgs#nushell
           nix profile add github:ck3mp3r/nu-mods/feature/ci-scm-module#ci
 
+      - name: Debug - Find where ci module is installed
+        run: |
+          echo "=== Nix profile list ==="
+          nix profile list
+          echo ""
+          echo "=== Searching for nu-modules ==="
+          find /nix/store -name "nu-modules" -type d 2>/dev/null | head -20 || true
+          echo ""
+          echo "=== Checking profile symlinks ==="
+          ls -la $HOME/.nix-profile/ 2>/dev/null || echo "No .nix-profile"
+          echo ""
+          echo "=== Searching for ci module specifically ==="
+          find /nix/store -path "*/share/nu-modules/ci" -type d 2>/dev/null | head -5 || true
+
       - name: Check CI Tools
         shell: nu {0}
         env:
           NU_LIB_DIRS: $HOME/.nix-profile/share/nu-modules
         run: |
-          ls /Users/runner/.nix-profile/share/nu-modules
-          # use ci
+          use ci
