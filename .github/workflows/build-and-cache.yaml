@@ -45,7 +45,7 @@ jobs:
           let nix_modules_dir = $"($env.HOME)/.nix-profile/share/nushell/modules/"
           
           # Write to config.nu using $env not const - properly interpolate the path
-          $'$env.NU_LIB_DIRS = \($env.NU_LIB_DIRS? | default [] | append "($nix_modules_dir)" | uniq\)' | save $config_file
+          $"$env.NU_LIB_DIRS = \($env.NU_LIB_DIRS? | default [] | append \"($nix_modules_dir)\" | uniq\)" | save $config_file
           
           print $"✓ Wrote to config.nu: ($config_file)"
           print "Contents:"
