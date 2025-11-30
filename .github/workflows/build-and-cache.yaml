@@ -21,11 +21,11 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
-        with:
-          use-flakehub: false
-          use-gha-cache: true
+      # - name: Setup Nix cache
+      #   uses: DeterminateSystems/magic-nix-cache-action@main
+      #   with:
+      #     use-flakehub: false
+      #     use-gha-cache: true
 
       - name: Install Nushell and CI module
         run: |
