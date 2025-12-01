@@ -60,5 +60,13 @@ jobs:
         shell: nu --login {0}
         run: |
           print "Testing if ci module loads with --login flag..."
+          print "\nNU_LIB_DIRS (const):"
+          print $NU_LIB_DIRS
+          print "\n$env.NU_LIB_DIRS:"
+          print $env.NU_LIB_DIRS
+          print "\nConfig dir:"
+          print $nu.default-config-dir
+          print "\nChecking if modules exist:"
+          ls ($env.HOME | path join '.nix-profile' 'share' 'nushell' 'modules')
           use ci
           print "✓ CI module loaded successfully!"
