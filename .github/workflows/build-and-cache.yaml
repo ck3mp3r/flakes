@@ -83,21 +83,12 @@ jobs:
           # Determine if we should cache
           let should_cache = ($env.GITHUB_REF == "refs/heads/main")
 
-          # Build and cache each flake
-          $buildable_flakes | each {|flake|
-            try {
-              cd $flake
-              let build_results = (ci nix build)
-              let paths = ($build_results | where status == "success" | get path)
+          # Build all flakes
+          let build_results = ($buildable_flakes | ci nix build)
 
-              if not ($paths | is-empty) {
-                let cache_flags = if $should_cache { [] } else { ["--dry-run"] }
-                $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" ...$cache_flags
-              }
-
-              cd ..
-            } catch {|err|
-              print $"Failed to process ($flake): ($err)"
-              cd ..
-            }
+          # Cache successful builds
+          let paths = ($build_results | where status == "success" | get path)
+          if not ($paths | is-empty) {
+            let cache_flags = if $should_cache { [] } else { ["--dry-run"] }
+            $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" ...$cache_flags
           }
