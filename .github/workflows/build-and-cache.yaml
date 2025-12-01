@@ -60,6 +60,8 @@ jobs:
         run: |
           print "NU_LIB_DIRS with --login:"
           print $env.NU_LIB_DIRS
+          print "Default config dir:"
+          print $nu.default-config-dir
 
       - name: Build and Cache Flakes
         shell: nu --login {0}
