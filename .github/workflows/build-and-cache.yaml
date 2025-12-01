@@ -73,7 +73,8 @@ jobs:
           }
 
           # Get buildable flakes
-          let buildable_flakes = ($paths_to_check | ci nix flakes | ci nix packages | get flake | uniq)
+          let packages_table = ($paths_to_check | ci nix flakes | ci nix packages)
+          let buildable_flakes = if ($packages_table | is-empty) { [] } else { $packages_table | get flake | uniq }
 
           if ($buildable_flakes | is-empty) {
             print "No flakes to build"
@@ -86,8 +87,8 @@ jobs:
           # Build all flakes
           let build_results = ($buildable_flakes | ci nix build)
 
-          # Cache successful builds
-          let paths = ($build_results | where status == "success" | get path)
+          # Cache successful builds (filter to non-null paths)
+          let paths = ($build_results | where status == "success" | get path | where {|p| $p != null})
           if not ($paths | is-empty) {
             let cache_flags = if $should_cache { [] } else { ["--dry-run"] }
             $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" ...$cache_flags
