@@ -21,6 +21,15 @@ jobs:
         with:
           fetch-depth: 2 # Need to fetch at least 2 commits to compare
 
+      - name: Setup netrc for cachix authentication
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+        run: |
+          sudo mkdir -p /etc/nix
+          echo "machine ck3mp3r.cachix.org" | sudo tee /etc/nix/netrc
+          echo "password $CACHIX_AUTH_TOKEN" | sudo tee -a /etc/nix/netrc
+          sudo chmod 600 /etc/nix/netrc
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
         with:
@@ -51,9 +60,44 @@ jobs:
 
           print $"✓ Created symlink: ($scripts_dir)"
 
-      - name: Test module loading
+      - name: Build and cache flakes
         shell: nu {0}
         run: |
-          print "Testing ci module..."
           use ci
-          print "✓ CI module loaded successfully!"
+
+          # Determine which paths to check based on trigger
+          let paths_to_check = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
+            glob **/flake.nix | each {|f| $f | path dirname}
+          } else {
+            git diff --name-only HEAD~1 HEAD | lines
+          }
+
+          # Get buildable flakes
+          let buildable_flakes = ($paths_to_check | ci nix flakes | ci nix packages | get flake | uniq)
+
+          if ($buildable_flakes | is-empty) {
+            print "No flakes to build"
+            exit 0
+          }
+
+          # Determine if we should cache
+          let should_cache = ($env.GITHUB_REF == "refs/heads/main")
+
+          # Build and cache each flake
+          for flake in $buildable_flakes {
+            try {
+              cd $flake
+              let build_results = (ci nix build)
+              let paths = ($build_results | where status == "success" | get path)
+
+              if not ($paths | is-empty) {
+                let cache_flags = if $should_cache { [] } else { ["--dry-run"] }
+                $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" ...$cache_flags
+              }
+
+              cd ..
+            } catch {|err|
+              print $"Failed to process ($flake): ($err)"
+              cd ..
+            }
+          }
