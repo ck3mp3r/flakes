@@ -53,7 +53,7 @@ jobs:
           ]"
 
           $env_content | save -a $env_file
-          print $"✓ Created env.nu with (open $env_file) configuration"
+          print $"✓ Created env.nu with ($env_file) configuration"
 
       - name: Test with --login flag
         shell: nu --login {0}
