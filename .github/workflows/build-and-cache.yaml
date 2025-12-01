@@ -40,21 +40,25 @@ jobs:
           # Verify installation
           nu --version
 
-      - name: Create symlink to modules
+      - name: Create config.nu with NU_LIB_DIRS
         shell: nu {0}
         run: |
           mkdir $nu.default-config-dir
-          let scripts_dir = ($nu.default-config-dir | path join 'scripts')
+          let config_file = ($nu.default-config-dir | path join 'config.nu')
           
-          # Create symlink from scripts to nix profile modules
-          ln -s ($env.HOME | path join '.nix-profile' 'share' 'nushell' 'modules') $scripts_dir
+          # Create config.nu with const NU_LIB_DIRS
+          let config_content = 'const NU_LIB_DIRS = [
+              ($env.HOME | path join ".nix-profile" "share" "nushell" "modules")
+          ]'
           
-          print $"✓ Created symlink: ($scripts_dir)"
-          ls -la $nu.default-config-dir
+          $config_content | save $config_file
+          print $"✓ Created config.nu at: ($config_file)"
+          print "Content:"
+          cat $config_file
 
-      - name: Test if symlink allows module loading
-        shell: nu {0}
+      - name: Test module loading with --login
+        shell: nu --login {0}
         run: |
-          print "Testing if ci module loads via symlink..."
+          print "Testing if ci module loads with --login flag..."
           use ci
-          print "✓ CI module loaded successfully via symlink!"
+          print "✓ CI module loaded successfully!"
