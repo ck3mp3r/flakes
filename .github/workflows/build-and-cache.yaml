@@ -52,8 +52,8 @@ jobs:
               '($env.HOME)/.nix-profile/share/nushell/modules/'
           ]"
 
-          $env_content | save $env_file
-          print "✓ Created env.nu with NU_LIB_DIRS configuration"
+          $env_content | save -a $env_file
+          print $"✓ Created env.nu with (open $env_file) configuration"
 
       - name: Test with --login flag
         shell: nu --login {0}
