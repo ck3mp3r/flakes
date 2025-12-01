@@ -41,7 +41,7 @@ jobs:
           nu --version
 
       - name: Setup Nushell Environment
-        shell: nu {0}
+        shell: nu --login {0}
         run: |
           mkdir $nu.default-config-dir
           let env_file = [$nu.default-config-dir env.nu] | path join
