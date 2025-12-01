@@ -73,8 +73,7 @@ jobs:
           }
 
           # Get buildable flakes
-          let packages_table = ($paths_to_check | ci nix flakes | ci nix packages)
-          let buildable_flakes = if ($packages_table | is-empty) { [] } else { $packages_table | get flake | uniq }
+          let buildable_flakes = ($paths_to_check | ci nix flakes | ci nix packages | get flake? | uniq)
 
           if ($buildable_flakes | is-empty) {
             print "No flakes to build"
