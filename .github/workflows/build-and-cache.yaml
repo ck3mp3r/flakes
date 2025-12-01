@@ -84,7 +84,7 @@ jobs:
           let should_cache = ($env.GITHUB_REF == "refs/heads/main")
 
           # Build and cache each flake
-          for flake in $buildable_flakes {
+          $buildable_flakes | each {|flake|
             try {
               cd $flake
               let build_results = (ci nix build)
