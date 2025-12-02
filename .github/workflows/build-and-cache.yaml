@@ -63,7 +63,7 @@ jobs:
       - name: Build and cache flakes
         shell: nu {0}
         run: |
-          use ci
+          use ci *
 
           # Determine which paths to check based on trigger
           let paths_to_check = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
