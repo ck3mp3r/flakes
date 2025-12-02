@@ -1,0 +1,20 @@
+# Act configuration for container-based testing
+# Uses catthehacker's GitHub Actions runner images
+
+# Use catthehacker Ubuntu images (standard for act testing)
+# These images mirror the actual GitHub Actions runners
+-P macos-15=catthehacker/ubuntu:act-latest
+-P macos-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Load secrets from .secrets file
+--secret-file .secrets
+
+# Container architecture for Apple Silicon
+--container-architecture linux/amd64
+
+# Enable verbose output for debugging
+--verbose
+
+# Use the actual repository context
+--detect-event

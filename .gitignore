@@ -1,1 +1,9 @@
 result
+
+# Devenv artifacts
+.devenv
+.direnv
+
+# Act local testing files
+.secrets
+*.secrets
