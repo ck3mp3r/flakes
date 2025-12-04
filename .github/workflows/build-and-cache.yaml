@@ -99,14 +99,15 @@ jobs:
 
           # Generate summary table
           let summary_data = ($build_results | each {|result|
-            let cached = if ($result.status == "success" and $result.path != null and ($result.path in $cached_paths)) {
-              "✅ Cached"
-            } else if ($result.status == "success" and $result.path != null) {
-              "⏭️ Skipped"
-            } else if $result.status == "success" {
-              "⚠️ No path"
-            } else {
-              "❌ Failed"
+            let is_success = ($result.status == "success")
+            let has_path = ($result.path != null)
+            let is_cached = if $has_path { $result.path in $cached_paths } else { false }
+
+            let cached = match [$is_success, $has_path, $is_cached] {
+              [true, false, _] => "⚠️ No path",
+              [true, true, true] => "✅ Cached",
+              [true, true, false] => "⏭️ Skipped",
+              _ => "❌ Failed"
             }
             {
               flake: $result.flake,
