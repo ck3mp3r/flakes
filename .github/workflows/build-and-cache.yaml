@@ -87,8 +87,11 @@ jobs:
           # Cache successful builds (filter to non-null paths)
           let paths = ($build_results | where status == "success" | get path | where {|p| $p != null})
           let cached_paths = if not ($paths | is-empty) {
-            let cache_flags = if $should_cache { [] } else { ["--dry-run"] }
-            $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" ...$cache_flags
+            if $should_cache {
+              $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
+            } else {
+              $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
+            }
           } else {
             []
           }
