@@ -101,27 +101,38 @@ jobs:
             let is_success = ($result.status == "success")
             let has_path = ($result.path != null)
             let is_cached = if $has_path { $result.path in $cached_paths } else { false }
-
-            let cached = match [$is_success, $has_path, $is_cached] {
-              [true, false, _] => "⚠️ No path",
+            
+            let status_display = match [$is_success, $has_path, $is_cached] {
+              [true, false, _] => "⚠️  No output",
               [true, true, true] => "✅ Cached",
-              [true, true, false] => "⏭️ Skipped",
+              [true, true, false] => "⏭️  Already cached",
               _ => "❌ Failed"
             }
+            
+            let flake_name = ($result.flake | path basename)
+            
             {
-              flake: $result.flake,
-              package: $result.package,
-              status: $result.status,
-              cached: $cached,
-              path: ($result.path | default "N/A")
+              Flake: $flake_name,
+              Package: $result.package,
+              Status: $status_display
             }
           })
 
+          # Calculate statistics
+          let total_packages = ($build_results | length)
+          let successful_builds = ($build_results | where status == "success" | length)
+          let failed_builds = ($build_results | where status != "success" | length)
+          let newly_cached = ($cached_paths | length)
+          let already_cached = ($build_results | where status == "success" | get path | where {|p| $p != null and $p not-in $cached_paths} | length)
+
           # Output to GitHub step summary
           [
-            "# Build and Cache Summary\n"
+            "# 🏗️ Build and Cache Summary\n"
+            $"**Total packages:** ($total_packages)"
+            $"**✅ Successful:** ($successful_builds)"
+            $"**❌ Failed:** ($failed_builds)"
+            $"**📦 Newly cached:** ($newly_cached)"
+            $"**♻️  Already in cache:** ($already_cached)\n"
+            "## Package Details\n"
             ($summary_data | to md --pretty)
-            $"\n**Total packages:** ($summary_data | length)\n"
-            $"**Successfully built:** ($build_results | where status == 'success' | length)\n"
-            $"**Cached to Cachix:** ($cached_paths | length)\n"
           ] | ci github summary
