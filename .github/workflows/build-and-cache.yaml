@@ -52,8 +52,6 @@ jobs:
       - name: Create symlink to modules
         shell: nu {0}
         run: |
-          use ci *
-
           mkdir $nu.default-config-dir
           let scripts_dir = ($nu.default-config-dir | path join 'scripts')
 
