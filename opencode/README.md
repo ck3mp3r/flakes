@@ -35,7 +35,7 @@ nix profile install github:ck3mp3r/flakes?dir=opencode
   inputs = {
     opencode.url = "github:ck3mp3r/flakes?dir=opencode";
   };
-  
+
   outputs = { self, nixpkgs, opencode }: {
     # Use in your configuration
     packages.x86_64-linux.default = opencode.packages.x86_64-linux.default;
@@ -118,7 +118,7 @@ buildPhase = ''
   export HOME=$TMPDIR/home
   export XDG_CACHE_HOME=$TMPDIR/cache
   mkdir -p $HOME $XDG_CACHE_HOME
-  
+
   # Add your initialization commands here
   ${pkgs.opencode}/bin/opencode init
   ${pkgs.opencode}/bin/opencode download-models

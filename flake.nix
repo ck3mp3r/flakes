@@ -12,12 +12,17 @@
     # Flake-parts for modular flake structure
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "base-nixpkgs/unstable";
+
+    # Git hooks for pre-commit
+    git-hooks.url = "github:cachix/git-hooks.nix";
+    git-hooks.inputs.nixpkgs.follows = "base-nixpkgs/unstable";
   };
 
   outputs = inputs @ {flake-parts, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
       imports = [
         inputs.devenv.flakeModule
+        inputs.git-hooks.flakeModule
       ];
 
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
@@ -41,9 +46,6 @@
         # Define the default development shell
         devenv.shells.default = {
           name = "flakes-monorepo";
-
-          # Use PWD to determine the root directory (requires --impure)
-          devenv.root = builtins.getEnv "PWD";
 
           # Use packages from base-nixpkgs
           packages = with pkgs; [
@@ -142,12 +144,31 @@
           # Disable process-compose (we don't need background processes)
           processes = {};
 
+          # Disable containers (we don't need them)
+          containers = pkgs.lib.mkForce {};
+
           # Cachix integration for binary caching
           cachix.enable = true;
           cachix.pull = ["devenv"];
 
           # Enable direnv integration
           dotenv.enable = true;
+
+          # Git hooks / pre-commit configuration
+          git-hooks.hooks = {
+            # Nix formatting
+            alejandra.enable = true;
+
+            # YAML validation (for GitHub workflows)
+            check-yaml.enable = true;
+
+            # Basic file hygiene
+            end-of-file-fixer.enable = true;
+            trim-trailing-whitespace = {
+              enable = true;
+              excludes = [".*\\.nix"];
+            };
+          };
         };
       };
     };

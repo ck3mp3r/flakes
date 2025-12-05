@@ -101,16 +101,16 @@ jobs:
             let is_success = ($result.status == "success")
             let has_path = ($result.path != null)
             let is_cached = if $has_path { $result.path in $cached_paths } else { false }
-            
+
             let status_display = match [$is_success, $has_path, $is_cached] {
               [true, false, _] => "⚠️  No output",
               [true, true, true] => "✅ Cached",
               [true, true, false] => "⏭️  Already cached",
               _ => "❌ Failed"
             }
-            
+
             let flake_name = ($result.flake | path basename)
-            
+
             {
               Flake: $flake_name,
               Package: $result.package,
