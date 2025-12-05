@@ -56,12 +56,12 @@ let
       callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
         // {
           config = fenixTarget;
-          toolchain = toolchain;
+          inherit toolchain;
         });
     in {
       inherit callPackage;
       pkgs = tmpPkgs;
-      toolchain = toolchain;
+      inherit toolchain;
     };
   in
     # Only build package if current system is supported
@@ -81,7 +81,7 @@ let
       binaryPackage = cross.callPackage ./build.nix {
         inherit cargoToml cargoLock src;
         extraArgs = mergedExtraArgs;
-        toolchain = cross.toolchain;
+        inherit (cross) toolchain;
       };
 
       # Create distribution bundle if requested
@@ -89,7 +89,7 @@ let
       distributionBundle = archiveAndHashLib {
         inherit pkgs;
         drv = binaryPackage;
-        name = cargoToml.package.name;
+        inherit (cargoToml.package) name;
       };
 
       # Choose main package based on archiveAndHash flag

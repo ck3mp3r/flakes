@@ -157,6 +157,9 @@
             # Nix formatting
             alejandra.enable = true;
 
+            # Nix linting
+            statix.enable = true;
+
             # YAML validation (for GitHub workflows)
             check-yaml.enable = true;
 

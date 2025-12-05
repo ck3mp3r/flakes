@@ -7,7 +7,7 @@
   toolchain,
 }: let
   pname = cargoToml.package.name;
-  version = cargoToml.package.version;
+  inherit (cargoToml.package) version;
 
   drv =
     (pkgs.makeRustPlatform {
