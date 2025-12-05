@@ -29,8 +29,6 @@
 
       perSystem = {
         config,
-        self',
-        inputs',
         system,
         ...
       }: let
