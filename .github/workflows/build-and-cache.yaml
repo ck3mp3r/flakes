@@ -117,46 +117,8 @@ jobs:
             }
           })
 
-          # Calculate overall statistics
-          let total_packages = ($build_results | length)
-          let successful_builds = ($build_results | where status == "success" | length)
-          let failed_builds = ($build_results | where status != "success" | length)
-          let total_paths = ($build_results | where status == "success" | get path | where {|p| $p != null} | length)
-          let newly_cached = ($cached_paths | length)
-
-          # Generate detailed package list
-          let package_details = ($build_results | each {|result|
-            let is_success = ($result.status == "success")
-            let has_path = ($result.path != null)
-            let is_cached = if $has_path { $result.path in $cached_paths } else { false }
-
-            let status_display = match [$is_success, $has_path, $is_cached] {
-              [true, false, _] => "⚠️  No output",
-              [true, true, true] => "✅ Cached",
-              [true, true, false] => "⏭️  Already cached",
-              _ => "❌ Failed"
-            }
-
-            let flake_name = ($result.flake | path basename)
-
-            {
-              Flake: $flake_name,
-              Package: $result.package,
-              Status: $status_display
-            }
-          })
-
           # Output to GitHub step summary
           [
             "# 🏗️ Build and Cache Summary\n"
-            "## Per-Flake Statistics\n"
             ($flake_stats | to md --pretty)
-            "\n## Overall Totals\n"
-            $"**Total packages:** ($total_packages)"
-            $"**✅ Successful builds:** ($successful_builds)"
-            $"**❌ Failed builds:** ($failed_builds)"
-            $"**📦 Total paths found:** ($total_paths)"
-            $"**🆕 Newly cached:** ($newly_cached)\n"
-            "## Package Details\n"
-            ($package_details | to md --pretty)
           ] | ci github summary
