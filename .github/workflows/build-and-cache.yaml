@@ -87,21 +87,26 @@ jobs:
           # Process each successful build and cache individually to track per-package stats
           let build_results_with_cache_info = ($build_results | each {|result|
             if ($result.status == "success" and $result.path != null) {
-              # Call ci nix cache for this specific package to get all its dependency paths
-              let package_paths = if $should_cache {
-                [$result.path] | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
+              # Get all closure paths (all dependencies)
+              let closure_paths = ($result.path | ci nix closure)
+
+              # Cache all paths
+              let cache_results = if $should_cache {
+                $closure_paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
               } else {
-                [$result.path] | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
+                $closure_paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
               }
 
+              # Count total paths and how many were newly cached (not in upstream)
+              let total_paths = ($closure_paths | length)
+              let newly_cached = ($cache_results | where cached == false | length)
+
               $result | merge {
-                all_paths: $package_paths,
-                path_count: ($package_paths | length),
-                cached_count: ($package_paths | length)
+                path_count: $total_paths,
+                cached_count: $newly_cached
               }
             } else {
               $result | merge {
-                all_paths: [],
                 path_count: 0,
                 cached_count: 0
               }
