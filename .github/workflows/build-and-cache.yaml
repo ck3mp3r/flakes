@@ -42,7 +42,7 @@ jobs:
       #     use-gha-cache: true
 
       - name: Setup CI Tools
-        uses: ck3mp3r/actions/ci-tools@feature/ci-tools-action
+        uses: ck3mp3r/actions/ci-tools@main
 
       - name: Build and cache flakes
         shell: nu {0}

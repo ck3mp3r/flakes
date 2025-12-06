@@ -24,7 +24,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Setup CI Tools
-        uses: ck3mp3r/actions/ci-tools@feature/ci-tools-action
+        uses: ck3mp3r/actions/ci-tools@main
 
       - name: Update base-nixpkgs flake.lock
         shell: nu {0}
@@ -78,7 +78,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
 
       - name: Setup CI Tools
-        uses: ck3mp3r/actions/ci-tools@feature/ci-tools-action
+        uses: ck3mp3r/actions/ci-tools@main
 
       - name: Update all flakes after base-nixpkgs merge
         shell: nu {0}
