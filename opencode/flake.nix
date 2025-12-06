@@ -70,7 +70,7 @@
         # Derivation that runs opencode to populate the cache
         opencode-cache = pkgs.stdenv.mkDerivation {
           pname = "opencode-cache";
-          version = opencode.version;
+          inherit (opencode) version;
 
           # No source needed, we're just capturing runtime data
           dontUnpack = true;

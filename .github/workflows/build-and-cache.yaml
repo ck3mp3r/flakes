@@ -9,126 +9,125 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  XDG_CONFIG_HOME: /var/tmp/xdg-config-home
+
 jobs:
   build-and-cache:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 2 # Need to fetch at least 2 commits to compare
 
-      - name: Setup Nu Tools
-        uses: ck3mp3r/actions/nu-tools@main
-
-      - name: Detect changed flakes and build to cache
-        shell: nu {0}
+      - name: Setup netrc for cachix authentication
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
-          use nu-tools *
+          sudo mkdir -p /etc/nix
+          echo "machine ck3mp3r.cachix.org" | sudo tee /etc/nix/netrc
+          echo "password $CACHIX_AUTH_TOKEN" | sudo tee -a /etc/nix/netrc
+          sudo chmod 600 /etc/nix/netrc
 
-          print $"(ansi cyan_bold)🔍 Detecting flakes...(ansi reset)\n"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          determinate: false
 
-          # Dynamically discover all flake directories
-          let all_flakes = (ls
-            | where type == dir
-            | where name !~ '^\.' # exclude hidden directories like .github
-            | each {|dir|
-                if ($"($dir.name)/flake.nix" | path exists) {
-                  $dir.name
-                }
-              }
-            | compact
-          )
+      # - name: Setup Nix cache
+      #   uses: DeterminateSystems/magic-nix-cache-action@main
+      #   with:
+      #     use-flakehub: false
+      #     use-gha-cache: true
 
-          print $"Found flakes in repository:"
-          $all_flakes | each {|f| print $"  • ($f)"}
-          print ""
+      - name: Setup CI Tools
+        uses: ck3mp3r/actions/ci-tools@main
 
-          # Determine which flakes to build based on trigger
-          let flakes_to_build = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
-            print $"(ansi blue)ℹ Manual trigger detected - building ALL flakes(ansi reset)\n"
-            $all_flakes
+      - name: Build and cache flakes
+        shell: nu {0}
+        run: |
+          use ci *
+
+          # Determine which paths to check based on trigger
+          let paths_to_check = if $env.GITHUB_EVENT_NAME == "workflow_dispatch" {
+            glob **/flake.nix | each {|f| $f | path dirname}
           } else {
-            print $"(ansi blue)ℹ Push trigger detected - building only CHANGED flakes(ansi reset)\n"
-
-            # Get list of changed files in the last commit
-            let changed_files = (git diff --name-only HEAD~1 HEAD | lines)
-
-            print $"Changed files:"
-            $changed_files | each {|f| print $"  • ($f)"}
-            print ""
-
-            # Extract flake directories from changed files
-            ($changed_files
-              | each {|file|
-                  let parts = ($file | split row '/')
-                  if ($parts | length) > 0 {
-                    $parts.0
-                  } else {
-                    null
-                  }
-                }
-              | uniq
-              | where {|dir| $dir in $all_flakes}
-              | uniq
-            )
+            git diff --name-only HEAD~1 HEAD | lines
           }
 
-          # Filter to only existing flake directories (handles deleted flakes)
-          let existing_flakes = ($flakes_to_build
-            | where {|flake| ($flake | path exists) and ($"($flake)/flake.nix" | path exists)}
-          )
-
-          # Filter to only flakes that have buildable packages
-          print $"(ansi blue)Checking which flakes have buildable packages...(ansi reset)"
-          let buildable_flakes = ($existing_flakes
-            | each {|flake|
-                try {
-                  let has_packages = (nix flake show $"./($flake)" --json
-                    | from json
-                    | get --optional packages
-                    | default {}
-                    | values
-                    | any {|sys| ($sys | columns | length) > 0}
-                  )
-                  if $has_packages { $flake } else { null }
-                } catch {
-                  null
-                }
-              }
-            | compact
-          )
+          # Get buildable flakes
+          let buildable_flakes = ($paths_to_check | ci nix flakes | ci nix packages | get flake? | uniq)
 
           if ($buildable_flakes | is-empty) {
-            print $"(ansi yellow)⚠ No flakes with buildable packages found(ansi reset)"
+            "No flakes to build" | ci log info
             exit 0
           }
 
-          print $"(ansi green)✓ Flakes to build:(ansi reset)"
-          $buildable_flakes | each {|f| print $"  • ($f)"}
-          print ""
+          # Determine if we should cache
+          let should_cache = ($env.GITHUB_REF == "refs/heads/main")
 
-          # Build and cache each flake
-          for flake in $buildable_flakes {
-            print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)"
-            print $"(ansi cyan_bold)📦 Processing flake: ($flake)(ansi reset)"
-            print $"(ansi cyan_bold)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━(ansi reset)\n"
+          # Build all flakes
+          let build_results = ($buildable_flakes | ci nix build)
 
-            try {
-              # Build flake from the flake directory
-              cd $flake
-              publish-to-cachix ck3mp3r --flake ".#"
-              cd ..
-            } catch {|err|
-              print $"(ansi red_bold)❌ Failed to build/cache ($flake):(ansi reset)"
-              print $err
-              print $"(ansi yellow)⚠ Continuing with next flake...(ansi reset)\n"
-              cd ..
+          # Process each successful build and cache individually to track per-package stats
+          let build_results_with_cache_info = ($build_results | each {|result|
+            if ($result.status == "success" and $result.path != null) {
+              # Get all closure paths (all dependencies)
+              let closure_paths = ($result.path | ci nix closure)
+
+              # Cache all paths
+              let cache_results = if $should_cache {
+                $closure_paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
+              } else {
+                $closure_paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
+              }
+
+              # Count total paths and how many were newly cached (not in upstream)
+              let total_paths = ($closure_paths | length)
+              let newly_cached = ($cache_results | where cached == false | length)
+
+              $result | merge {
+                path_count: $total_paths,
+                cached_count: $newly_cached
+              }
+            } else {
+              $result | merge {
+                path_count: 0,
+                cached_count: 0
+              }
             }
+          })
 
-            print ""
-          }
+          # Calculate total paths across all packages
+          let total_paths_count = ($build_results_with_cache_info | get path_count | math sum)
+          let total_cached_count = ($build_results_with_cache_info | get cached_count | math sum)
 
-          print $"(ansi green_bold)✅ Build and cache workflow completed!(ansi reset)"
+          # Build hierarchical summary by flake
+          let summary_sections = ($build_results_with_cache_info | group-by flake | transpose flake_path packages | each {|flake_group|
+            let flake_name = ($flake_group.flake_path | path basename)
+            let packages = $flake_group.packages
+
+            # Per-package details with path counts
+            let package_table = ($packages | each {|pkg|
+              let status = if ($pkg.status == "success") { "✅" } else { "❌" }
+
+              {
+                Package: $pkg.package,
+                Status: $status,
+                "Store Paths": $pkg.path_count,
+                "Cached": $pkg.cached_count
+              }
+            })
+
+            let flake_header = $"## 📦 ($flake_name)\n"
+            let table = ($package_table | to md --pretty)
+
+            [$flake_header $table "\n"]
+          } | flatten)
+
+          # Output to GitHub step summary
+          [
+            "# 🏗️ Build and Cache Summary\n"
+            $"**Total store paths:** ($total_paths_count) | **Cached:** ($total_cached_count)\n"
+          ] | append $summary_sections | ci github summary

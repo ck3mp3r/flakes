@@ -32,7 +32,7 @@ nix profile install github:ck3mp3r/flakes?dir=topiary-nu
   inputs = {
     topiary-nu.url = "github:ck3mp3r/flakes?dir=topiary-nu";
   };
-  
+
   outputs = { self, nixpkgs, topiary-nu, ... }: {
     # Use topiary-nu.packages.${system}.default
   };
