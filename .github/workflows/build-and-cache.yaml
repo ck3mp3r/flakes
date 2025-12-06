@@ -84,41 +84,67 @@ jobs:
           # Build all flakes
           let build_results = ($buildable_flakes | ci nix build)
 
-          # Cache successful builds (filter to non-null paths)
-          let paths = ($build_results | where status == "success" | get path | where {|p| $p != null})
-          let cached_paths = if not ($paths | is-empty) {
-            if $should_cache {
-              $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
-            } else {
-              $paths | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
-            }
-          } else {
-            []
-          }
+          # Process each successful build and cache individually to track per-package stats
+          let build_results_with_cache_info = ($build_results | each {|result|
+            if ($result.status == "success" and $result.path != null) {
+              # Call ci nix cache for this specific package to get all its dependency paths
+              let package_paths = if $should_cache {
+                [$result.path] | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org"
+              } else {
+                [$result.path] | ci nix cache "https://ck3mp3r.cachix.org" --upstream "https://cache.nixos.org" --dry-run
+              }
 
-          # Calculate per-flake statistics
-          let flake_stats = ($build_results | group-by flake | transpose flake_path packages | each {|flake_group|
+              $result | merge {
+                all_paths: $package_paths,
+                path_count: ($package_paths | length),
+                cached_count: ($package_paths | length)
+              }
+            } else {
+              $result | merge {
+                all_paths: [],
+                path_count: 0,
+                cached_count: 0
+              }
+            }
+          })
+
+          # Calculate total paths across all packages
+          let total_paths_count = ($build_results_with_cache_info | get path_count | math sum)
+          let total_cached_count = ($build_results_with_cache_info | get cached_count | math sum)
+
+          # Build hierarchical summary by flake
+          let summary_sections = ($build_results_with_cache_info | group-by flake | transpose flake_path packages | each {|flake_group|
             let flake_name = ($flake_group.flake_path | path basename)
             let packages = $flake_group.packages
 
+            # Per-package details with path counts
+            let package_table = ($packages | each {|pkg|
+              let status = if ($pkg.status == "success") { "✅" } else { "❌" }
+
+              {
+                Package: $pkg.package,
+                Status: $status,
+                "Store Paths": $pkg.path_count,
+                "Cached": $pkg.cached_count
+              }
+            })
+
+            # Flake-level stats
             let total = ($packages | length)
             let successful = ($packages | where status == "success" | length)
             let failed = ($packages | where status != "success" | length)
-            let with_paths = ($packages | where status == "success" | get path | where {|p| $p != null} | length)
-            let newly_cached = ($packages | where status == "success" | get path | where {|p| $p != null and $p in $cached_paths} | length)
+            let total_paths = ($package_table | get "Store Paths" | math sum)
+            let total_cached = ($package_table | get "Cached" | math sum)
 
-            {
-              Flake: $flake_name,
-              "Total": $total,
-              "✅ Built": $successful,
-              "❌ Failed": $failed,
-              "📦 Paths": $with_paths,
-              "🆕 Cached": $newly_cached
-            }
-          })
+            let flake_header = $"## 📦 ($flake_name)\n"
+            let stats = $"**Packages:** ($total) | **✅ Built:** ($successful) | **❌ Failed:** ($failed) | **Store Paths:** ($total_paths) | **Cached:** ($total_cached)\n"
+            let table = ($package_table | to md --pretty)
+
+            [$flake_header $stats $table "\n"]
+          } | flatten)
 
           # Output to GitHub step summary
           [
             "# 🏗️ Build and Cache Summary\n"
-            ($flake_stats | to md --pretty)
-          ] | ci github summary
+            $"**Total store paths:** ($total_paths_count) | **Cached:** ($total_cached_count)\n"
+          ] | append $summary_sections | ci github summary
