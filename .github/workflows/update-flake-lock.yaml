@@ -51,8 +51,8 @@ jobs:
 
           # Create and switch to update branch (also pulls latest)
           let branch_desc = $"update-base-nixpkgs-(date now | format date '%Y%m%d-%H%M%S')"
-          $branch_desc | ci scm branch --chore
-          let branch_name = $"chore/($branch_desc)"
+          let branch_result = ($branch_desc | ci scm branch --chore)
+          let branch_name = $branch_result.branch
 
           # Update flake.lock
           "base-nixpkgs" | ci nix update
@@ -141,8 +141,8 @@ jobs:
 
           # Create and switch to update branch (also pulls latest)
           let branch_desc = $"update-all-flakes-(date now | format date '%Y%m%d-%H%M%S')"
-          $branch_desc | ci scm branch --chore
-          let branch_name = $"chore/($branch_desc)"
+          let branch_result = ($branch_desc | ci scm branch --chore)
+          let branch_name = $branch_result.branch
 
           # Update all flakes
           let flakes = [k8s-utils opencode rustnix slidev topiary-nu]
