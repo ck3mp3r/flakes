@@ -53,11 +53,11 @@ Use `follows` to make all your flake inputs share the same pinned nixpkgs versio
 {
   inputs = {
     base-nixpkgs.url = "github:ck3mp3r/flakes?dir=base-nixpkgs";
-    
+
     # Make other flakes use the same unstable nixpkgs
     some-other-flake.url = "github:someone/flake";
     some-other-flake.inputs.nixpkgs.follows = "base-nixpkgs/unstable";
-    
+
     # Works with any flake that has nixpkgs as an input
     rustnix.url = "github:ck3mp3r/flakes?dir=rustnix";
     rustnix.inputs.nixpkgs.follows = "base-nixpkgs/unstable";

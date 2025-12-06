@@ -60,7 +60,7 @@ nix profile install github:ck3mp3r/flakes?dir=k8s-utils
       system = "x86_64-linux";
       overlays = [ k8s-utils.overlays.default ];
     };
-    
+
     # Or reference the package directly
     devShells.default = nixpkgs.mkShell {
       buildInputs = [ k8s-utils.packages.x86_64-linux.default ];
@@ -105,4 +105,3 @@ argocd app sync my-app
 ## Contributing
 
 This flake is part of the [ck3mp3r/flakes](https://github.com/ck3mp3r/flakes) repository. Please see the main repository for contribution guidelines.
-

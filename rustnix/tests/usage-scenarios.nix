@@ -127,11 +127,11 @@
     crossCompilationDetection = let
       armMacPackages = scenarios.arm_mac_multi_target.packages;
     in
-      assert armMacPackages."aarch64-linux".isCrossCompiling == true; # Cross-compile
+      assert armMacPackages."aarch64-linux".isCrossCompiling; # Cross-compile
       
-      assert armMacPackages."x86_64-linux".isCrossCompiling == true; # Cross-compile
+      assert armMacPackages."x86_64-linux".isCrossCompiling; # Cross-compile
       
-      assert armMacPackages."aarch64-darwin".isCrossCompiling == false; # Native
+      assert !armMacPackages."aarch64-darwin".isCrossCompiling; # Native
       
         "✓ Cross-compilation detection works correctly";
 
@@ -154,7 +154,7 @@
 
     # Verify package naming
     packageNaming = let
-      packages = scenarios.arm_mac_multi_target.packages;
+      inherit (scenarios.arm_mac_multi_target) packages;
     in
       assert packages."aarch64-linux".packageName == "my-cli-aarch64-linux";
       assert packages."x86_64-linux".packageName == "my-cli-x86_64-linux"; "✓ Package naming includes target system";

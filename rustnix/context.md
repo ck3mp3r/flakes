@@ -1,7 +1,7 @@
 # Rustnix Cross-Compilation Fix Context
 
 ## Problem
-The current `buildTargetOutputs` function creates a confusing nested package structure when used with `flake-utils.lib.eachDefaultSystem`. 
+The current `buildTargetOutputs` function creates a confusing nested package structure when used with `flake-utils.lib.eachDefaultSystem`.
 
 ### Current Bad Output:
 ```
@@ -33,7 +33,7 @@ Change `buildTargetOutputs` to only return the package for the **current system*
 ### Expected Good Output:
 ```
 packages.aarch64-darwin.default   # Only ARM Darwin package
-packages.aarch64-linux.default    # Only ARM Linux package  
+packages.aarch64-linux.default    # Only ARM Linux package
 packages.x86_64-linux.default     # Only x86 Linux package
 ```
 

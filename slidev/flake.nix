@@ -31,7 +31,7 @@
 
       slidev = pkgs.stdenv.mkDerivation {
         pname = packageJson.name;
-        version = packageJson.version;
+        inherit (packageJson) version;
 
         # No source needed since we use npx
         dontUnpack = true;

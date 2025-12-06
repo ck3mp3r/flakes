@@ -60,10 +60,10 @@
   # Validations for the correct behavior
   validations = {
     # Cross-compilation detection
-    crossDetection = assert scenarios.x86_to_x86.isCrossCompiling == false;
-    assert scenarios.x86_to_arm.isCrossCompiling == true;
-    assert scenarios.arm_mac_to_x86.isCrossCompiling == true;
-    assert scenarios.arm_mac_native.isCrossCompiling == false; "✓ Cross-compilation detection works correctly";
+    crossDetection = assert !scenarios.x86_to_x86.isCrossCompiling;
+    assert scenarios.x86_to_arm.isCrossCompiling;
+    assert scenarios.arm_mac_to_x86.isCrossCompiling;
+    assert !scenarios.arm_mac_native.isCrossCompiling; "✓ Cross-compilation detection works correctly";
 
     # Toolchain selection (always from build system)
     toolchainSelection = assert scenarios.x86_to_arm.toolchainSystem == "x86_64-linux";

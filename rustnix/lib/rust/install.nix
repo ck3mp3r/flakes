@@ -5,10 +5,10 @@
 }:
 pkgs.stdenvNoCC.mkDerivation rec {
   pname = cargoToml.package.name;
-  version = cargoToml.package.version;
+  inherit (cargoToml.package) version;
 
   src = pkgs.fetchurl {
-    url = data.url;
+    inherit (data) url;
     sha256 = data.hash;
   };
 

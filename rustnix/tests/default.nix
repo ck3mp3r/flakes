@@ -69,7 +69,7 @@
         fenix = mockFenix;
         nixpkgs = import <nixpkgs>;
         overlays = [];
-        pkgs = pkgs;
+        inherit pkgs;
         src = ./.;
         system = "x86_64-linux";
       };
@@ -87,7 +87,7 @@
         fenix = mockFenix;
         nixpkgs = import <nixpkgs>;
         overlays = [];
-        pkgs = pkgs;
+        inherit pkgs;
         src = ./.;
         system = "aarch64-linux";
       };

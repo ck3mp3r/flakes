@@ -48,7 +48,7 @@ cd slidev
 # Build the package
 nix build .#slidev
 
-# Run the built package  
+# Run the built package
 ./result/bin/slidev --help
 
 # Format the flake (uses Alejandra)

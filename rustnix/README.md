@@ -26,7 +26,7 @@ inputs = {
     url = "github:cachix/devenv";
     inputs.nixpkgs.follows = "nixpkgs";
   };
-  
+
   # Make rustnix follow your input versions
   rustnix.inputs.nixpkgs.follows = "nixpkgs";
   rustnix.inputs.fenix.follows = "fenix";
@@ -90,7 +90,7 @@ The typical usage pattern with `flake-parts`:
 outputs = inputs @ { flake-parts, nixpkgs, rustnix, fenix, ... }:
   flake-parts.lib.mkFlake { inherit inputs; } {
     systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
-    
+
     perSystem = { pkgs, system, ... }: {
       packages = rustnix.lib.rust.buildTargetOutputs {
         inherit system pkgs;
@@ -109,9 +109,9 @@ outputs = inputs @ { flake-parts, nixpkgs, rustnix, fenix, ... }:
 
 This creates:
 ```
-packages.x86_64-linux.default     
-packages.aarch64-linux.default    
-packages.aarch64-darwin.default   
+packages.x86_64-linux.default
+packages.aarch64-linux.default
+packages.aarch64-darwin.default
 ```
 
 ### Overriding Inputs
@@ -124,7 +124,7 @@ inputs = {
   nixpkgs.url = "github:nixos/nixpkgs/specific-branch";
   fenix.url = "github:nix-community/fenix/specific-commit";
   devenv.url = "github:cachix/devenv/specific-version";
-  
+
   # Make rustnix follow your inputs
   rustnix.inputs.nixpkgs.follows = "nixpkgs";
   rustnix.inputs.fenix.follows = "fenix";
