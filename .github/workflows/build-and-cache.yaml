@@ -129,18 +129,10 @@ jobs:
               }
             })
 
-            # Flake-level stats
-            let total = ($packages | length)
-            let successful = ($packages | where status == "success" | length)
-            let failed = ($packages | where status != "success" | length)
-            let total_paths = ($package_table | get "Store Paths" | math sum)
-            let total_cached = ($package_table | get "Cached" | math sum)
-
             let flake_header = $"## 📦 ($flake_name)\n"
-            let stats = $"**Packages:** ($total) | **✅ Built:** ($successful) | **❌ Failed:** ($failed) | **Store Paths:** ($total_paths) | **Cached:** ($total_cached)\n"
             let table = ($package_table | to md --pretty)
 
-            [$flake_header $stats $table "\n"]
+            [$flake_header $table "\n"]
           } | flatten)
 
           # Output to GitHub step summary
