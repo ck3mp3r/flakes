@@ -1,0 +1,35 @@
+name: update-base-nixpkgs
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "0 0 * * 0" # First run: Create PR (Sunday at 00:00)
+    - cron: "30 0 * * 0" # Second run: Merge if checks pass (Sunday at 00:30)
+
+permissions:
+  contents: read
+
+jobs:
+  update-or-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Generate bot token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.BOT_ID }}
+          private-key: ${{ secrets.BOT }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update or merge base-nixpkgs
+        uses: ./.github/actions/update-flake-locks
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          name: base-nixpkgs
+          flakes: base-nixpkgs
+          pr-body: 'Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions).'

@@ -1,0 +1,104 @@
+name: Update Flake Locks
+description: Update flake locks and create/merge PR
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  name:
+    description: 'Short name for branch/PR (e.g., base-nixpkgs, flakes)'
+    required: true
+  flakes:
+    description: 'Space-separated list of flakes to update'
+    required: true
+  pr-body:
+    description: 'Pull request body (optional, will be auto-generated if not provided)'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Setup CI Tools
+      uses: ck3mp3r/actions/ci-tools@main
+
+    - name: Update or merge flakes
+      shell: nu {0}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        use ci *
+
+        "ck3mp3r-bot[bot]@users.noreply.github.com" | ci scm config
+
+        # Derived values
+        let name = "${{ inputs.name }}"
+        let branch_name = $"chore/update-($name)"
+
+        # Parse flakes input (space-separated)
+        let flakes = "${{ inputs.flakes }}" | split row " "
+        let flakes_count = ($flakes | length)
+
+        # Determine if singular or plural
+        let lock_suffix = if $flakes_count > 1 { "locks" } else { "lock" }
+        let pr_title = $"chore: update ($name) flake ($lock_suffix)"
+
+        # Use provided pr-body or generate default
+        let pr_body = if "${{ inputs.pr-body }}" != "" {
+          "${{ inputs.pr-body }}"
+        } else {
+          $"Automated update of ($name) flake ($lock_suffix)."
+        }
+
+        # Check if branch already exists
+        let branch_exists = (git ls-remote --heads origin $branch_name | complete | get stdout | str trim | is-not-empty)
+
+        if $branch_exists {
+          # Branch exists - this is the second run, check if we should merge
+          $"Branch ($branch_name) exists, checking if ready to merge..." | ci log info
+
+          # Get PR info for the branch
+          let pr_info = (ci github pr info $branch_name)
+
+          if $pr_info.status == "success" {
+            let pr_number = $pr_info.number
+
+            # Check if PR is mergeable (all checks passed)
+            if $pr_info.mergeable == "MERGEABLE" {
+              $"All checks passed, merging PR #($pr_number)" | ci log info
+              gh pr merge $pr_number --squash --delete-branch
+              "PR merged successfully!" | ci log info
+            } else {
+              $"PR #($pr_number) is not mergeable yet (status: ($pr_info.mergeable))" | ci log warning
+            }
+          } else {
+            $"No open PR found for branch ($branch_name)" | ci log warning
+          }
+        } else {
+          # Branch doesn't exist - this is the first run, create PR
+          $"Branch ($branch_name) does not exist, creating update PR..." | ci log info
+
+          # Pull latest main
+          git pull origin main
+
+          # Create and switch to update branch
+          git checkout -b $branch_name
+
+          # Update flakes
+          let flakes_expanded = ($flakes | path expand)
+          $flakes_expanded | ci nix update
+
+          # Check if there are changes
+          let changed_files = (ci scm changes | where {|it| $it =~ "flake.lock"})
+
+          if not ($changed_files | is-empty) {
+            # Stage, commit, and push
+            ci scm commit --message $pr_title --push
+
+            # Create PR
+            let pr_info = (ci github pr create $pr_title $pr_body)
+            $"Created PR #($pr_info.number): ($pr_info.url)" | ci log info
+          } else {
+            $"No changes to ($name) flake ($lock_suffix)" | ci log info
+          }
+        }
