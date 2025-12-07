@@ -17,7 +17,7 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ vars.BOT_ID }}
+          app-id: ${{ secrets.BOT_ID }}
           private-key: ${{ secrets.BOT }}
 
       - name: Checkout repository
