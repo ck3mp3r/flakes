@@ -6,7 +6,8 @@ on:
     - cron: "30 0 * * 0" # Second run: Merge if checks pass (Sunday at 00:30)
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   update-or-merge:
@@ -22,6 +23,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
