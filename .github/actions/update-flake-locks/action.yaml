@@ -87,13 +87,10 @@ runs:
           let flakes_expanded = ($flakes | path expand)
           $flakes_expanded | ci nix update
 
-          # Check if there are changes
-          let changed_files = (ci scm changes | where {|it| $it =~ "flake.lock"})
+          # Stage, commit, and push (ci scm commit handles the case of no changes)
+          let commit_result = (ci scm commit --message $pr_title --push)
 
-          if not ($changed_files | is-empty) {
-            # Stage, commit, and push
-            ci scm commit --message $pr_title --push
-
+          if $commit_result.pushed {
             # Create PR
             let pr_info = (ci github pr create $pr_title $pr_body)
             $"Created PR #($pr_info.number): ($pr_info.url)" | ci log info
