@@ -27,19 +27,11 @@ jobs:
         run: |
           use ci *
 
-          "Detecting changed flakes..." | ci log info
+          # Get changed directories from last commit
+          let paths_to_check = (git diff --name-only HEAD~1 HEAD | lines | each {|f| $f | path expand | path dirname})
 
-          # Get changed files from last commit
-          let changed_files = (git diff --name-only HEAD~1 HEAD | lines)
-
-          # Find flakes that have changes in .nix files
-          let changed_flakes = (
-            $changed_files
-            | where {|file| $file =~ "flake.nix" or $file =~ "flake.lock" or $file =~ ".nix"}
-            | each {|file| $file | path expand | path dirname}
-            | where {|dir| ($dir | path join "flake.nix") | path exists}
-            | uniq
-          )
+          # Get actual flakes from changed paths
+          let changed_flakes = ($paths_to_check | ci nix flakes)
 
           if ($changed_flakes | is-empty) {
             "No flakes changed, skipping checks" | ci log info
