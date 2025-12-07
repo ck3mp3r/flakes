@@ -3,10 +3,6 @@ on:
   push:
     branches-ignore:
       - main
-    paths:
-      - "**/flake.nix"
-      - "**/flake.lock"
-      - "**/*.nix"
 
 permissions:
   contents: read
@@ -18,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # Need full history to detect changes
+          fetch-depth: 2 # Need to fetch at least 2 commits to compare
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -31,19 +27,11 @@ jobs:
         run: |
           use ci *
 
-          "Detecting changed flakes..." | ci log info
+          # Get changed directories from last commit
+          let paths_to_check = (git diff --name-only HEAD~1 HEAD | lines | each {|f| $f | path expand | path dirname})
 
-          # Get changed files compared to main
-          let changed_files = (git diff --name-only origin/main...HEAD | lines)
-
-          # Find flakes that have changes
-          let changed_flakes = (
-            $changed_files
-            | where {|file| $file =~ "flake.nix" or $file =~ "flake.lock" or $file =~ ".nix"}
-            | each {|file| $file | path dirname}
-            | where {|dir| ($dir | path join "flake.nix") | path exists}
-            | uniq
-          )
+          # Get actual flakes from changed paths
+          let changed_flakes = ($paths_to_check | ci nix flakes)
 
           if ($changed_flakes | is-empty) {
             "No flakes changed, skipping checks" | ci log info
