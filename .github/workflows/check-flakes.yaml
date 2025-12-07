@@ -40,7 +40,7 @@ jobs:
             $changed_flakes | each {|f| $"  - ($f)" | ci log info}
 
             # Run nix flake check on changed flakes
-            let check_results = ($changed_flakes | ci nix check --args "--show-trace")
+            let check_results = ($changed_flakes | ci nix check --impure --args "--show-trace")
 
             # Check if any failed
             let failures = ($check_results | where status == "failed")
