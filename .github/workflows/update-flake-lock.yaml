@@ -41,7 +41,7 @@ jobs:
           let branch_name = $branch_result.branch
 
           # Update flake.lock
-          "base-nixpkgs" | ci nix update
+          "base-nixpkgs" | path expand | ci nix update
 
           # Check if there are changes
           let changed_files = (ci scm changes | where {|it| $it =~ "flake.lock"})
@@ -117,7 +117,7 @@ jobs:
           let branch_name = $branch_result.branch
 
           # Update all flakes
-          let flakes = [k8s-utils opencode rustnix slidev topiary-nu]
+          let flakes = [k8s-utils opencode rustnix slidev topiary-nu] | path expand
 
           $flakes | ci nix update
 
