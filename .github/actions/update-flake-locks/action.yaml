@@ -3,18 +3,18 @@ description: Update flake locks and create/merge PR
 
 inputs:
   github-token:
-    description: 'GitHub token for authentication'
+    description: "GitHub token for authentication"
     required: true
   name:
-    description: 'Short name for branch/PR (e.g., base-nixpkgs, flakes)'
+    description: "Short name for branch/PR (e.g., base-nixpkgs, flakes)"
     required: true
   flakes:
-    description: 'Space-separated list of flakes to update'
+    description: "Space-separated list of flakes to update"
     required: true
   pr-body:
-    description: 'Pull request body (optional, will be auto-generated if not provided)'
+    description: "Pull request body (optional, will be auto-generated if not provided)"
     required: false
-    default: ''
+    default: ""
 
 runs:
   using: composite
@@ -26,6 +26,7 @@ runs:
       shell: nu {0}
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         use ci *
 
