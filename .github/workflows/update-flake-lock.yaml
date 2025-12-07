@@ -50,11 +50,8 @@ jobs:
             # Stage, commit, and push
             ["base-nixpkgs/flake.lock"] | ci scm commit --message "chore: update base-nixpkgs flake.lock" --push
 
-            # Create PR
-            ci github pr create "chore: update base-nixpkgs flake.lock" "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions)."
-
-            # Get PR info for current branch
-            let pr_info = (ci github pr info $branch_name)
+            # Create PR and capture PR info
+            let pr_info = (ci github pr create "chore: update base-nixpkgs flake.lock" "Automated update of base-nixpkgs flake.lock (single source of truth for nixpkgs versions).")
             let pr_number = $pr_info.number
 
             # Merge PR immediately
@@ -133,12 +130,9 @@ jobs:
             # Stage, commit, and push all changes
             ci scm commit --message $full_message --push
 
-            # Create PR
+            # Create PR and capture PR info
             let pr_body = $"Automated update of all flake locks after base-nixpkgs was updated and merged. Updated: ($flakes | str join ', ')"
-            ci github pr create "chore: update all flake locks" $pr_body
-
-            # Get PR info for current branch
-            let pr_info = (ci github pr info $branch_name)
+            let pr_info = (ci github pr create "chore: update all flake locks" $pr_body)
             let pr_number = $pr_info.number
 
             # Merge PR immediately
