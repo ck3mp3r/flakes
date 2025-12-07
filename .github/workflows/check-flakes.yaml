@@ -37,19 +37,18 @@ jobs:
             "No flakes changed, skipping checks" | ci log info
           } else {
             $"Found ($changed_flakes | length) changed flake\(s\):" | ci log info
-            $changed_flakes | each {|f| $"  - ($f)" | print}
+            $changed_flakes | each {|f| $"  - ($f)" | ci log info}
 
-            # Run nix flake check on each changed flake
-            for flake in $changed_flakes {
-              $"Checking ($flake)..." | ci log info
+            # Run nix flake check on changed flakes
+            let check_results = ($changed_flakes | ci nix check --impure --args "--show-trace")
 
-              try {
-                nix flake check $flake --show-trace
-                $"✓ ($flake) checks passed" | ci log info
-              } catch {|err|
-                $"✗ ($flake) checks failed: ($err.msg)" | ci log error
-                exit 1
-              }
+            # Check if any failed
+            let failures = ($check_results | where status == "failed")
+
+            if not ($failures | is-empty) {
+              "Some flake checks failed:" | ci log error
+              $failures | each {|f| $"  ✗ ($f.flake): ($f.error)" | ci log error}
+              exit 1
             }
 
             "All checks passed!" | ci log info

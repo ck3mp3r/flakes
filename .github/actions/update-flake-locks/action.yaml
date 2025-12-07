@@ -33,7 +33,6 @@ runs:
 
         # Derived values
         let name = "${{ inputs.name }}"
-        let branch_name = $"chore/update-($name)"
 
         # Parse flakes input (space-separated)
         let flakes = "${{ inputs.flakes }}" | split row " "
@@ -50,51 +49,48 @@ runs:
           $"Automated update of ($name) flake ($lock_suffix)."
         }
 
-        # Check if branch already exists
-        let branch_exists = (git ls-remote --heads origin $branch_name | complete | get stdout | str trim | is-not-empty)
+        # Create or checkout branch (handles both new and existing branches)
+        let branch_result = ($"update-($name)" | ci scm branch --chore --reuse)
 
-        if $branch_exists {
-          # Branch exists - this is the second run, check if we should merge
-          $"Branch ($branch_name) exists, checking if ready to merge..." | ci log info
+        if $branch_result.status != "success" {
+          $"Failed to create/checkout branch: ($branch_result.error)" | ci log error
+          exit 1
+        }
 
-          # Get PR info for the branch
-          let pr_info = (ci github pr info $branch_name)
+        let branch_name = $branch_result.branch
 
-          if $pr_info.status == "success" {
-            let pr_number = $pr_info.number
+        # Check if PR already exists for this branch
+        let existing_prs = (ci github pr check --target main)
 
-            # Check if PR is mergeable (all checks passed)
-            if $pr_info.mergeable == "MERGEABLE" {
-              $"All checks passed, merging PR #($pr_number)" | ci log info
-              gh pr merge $pr_number --squash --delete-branch
-              "PR merged successfully!" | ci log info
-            } else {
-              $"PR #($pr_number) is not mergeable yet (status: ($pr_info.mergeable))" | ci log warning
-            }
+        if ($existing_prs | is-not-empty) {
+          # PR exists - this is the second run, check if we should merge
+          let pr = $existing_prs | first
+          let pr_number = $pr.number
+
+          $"PR #($pr_number) exists for branch ($branch_name)" | ci log info
+
+          # Get detailed PR info
+          let pr_info = (ci github pr info $pr_number)
+
+          if $pr_info.mergeable == "MERGEABLE" {
+            $"All checks passed, merging PR #($pr_number)" | ci log info
+            ci github pr merge $pr_number --method squash
+            $"PR merged successfully!" | ci log info
           } else {
-            $"No open PR found for branch ($branch_name)" | ci log warning
+            $"PR #($pr_number) is not mergeable yet (status: ($pr_info.mergeable))" | ci log warning
           }
         } else {
-          # Branch doesn't exist - this is the first run, create PR
-          $"Branch ($branch_name) does not exist, creating update PR..." | ci log info
-
-          # Pull latest main
-          git pull origin main
-
-          # Create and switch to update branch
-          git checkout -b $branch_name
+          # No PR exists - this is the first run, update and create PR
+          $"No existing PR for branch ($branch_name), updating flakes..." | ci log info
 
           # Update flakes
           let flakes_expanded = ($flakes | path expand)
           $flakes_expanded | ci nix update
 
-          # Check if there are changes
-          let changed_files = (ci scm changes | where {|it| $it =~ "flake.lock"})
+          # Stage, commit, and push (ci scm commit handles the case of no changes)
+          let commit_result = (ci scm commit --message $pr_title --push)
 
-          if not ($changed_files | is-empty) {
-            # Stage, commit, and push
-            ci scm commit --message $pr_title --push
-
+          if $commit_result.pushed {
             # Create PR
             let pr_info = (ci github pr create $pr_title $pr_body)
             $"Created PR #($pr_info.number): ($pr_info.url)" | ci log info
