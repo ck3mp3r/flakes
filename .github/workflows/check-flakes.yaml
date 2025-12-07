@@ -1,0 +1,68 @@
+name: check-flakes
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "**/flake.nix"
+      - "**/flake.lock"
+      - "**/*.nix"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Need full history to detect changes
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup CI Tools
+        uses: ck3mp3r/actions/ci-tools@main
+
+      - name: Check changed flakes
+        shell: nu {0}
+        run: |
+          use ci *
+
+          "Detecting changed flakes..." | ci log info
+
+          # Get changed files compared to main
+          let changed_files = (git diff --name-only origin/main...HEAD | lines)
+
+          # Find flakes that have changes
+          let changed_flakes = (
+            $changed_files
+            | where {|file| $file =~ "flake.nix" or $file =~ "flake.lock" or $file =~ ".nix"}
+            | each {|file| $file | path dirname}
+            | where {|dir| ($dir | path join "flake.nix") | path exists}
+            | uniq
+          )
+
+          if ($changed_flakes | is-empty) {
+            "No flakes changed, skipping checks" | ci log info
+          } else {
+            $"Found ($changed_flakes | length) changed flake\(s\):" | ci log info
+            $changed_flakes | each {|f| $"  - ($f)" | print}
+
+            # Run nix flake check on each changed flake
+            for flake in $changed_flakes {
+              $"Checking ($flake)..." | ci log info
+
+              try {
+                nix flake check $flake --show-trace
+                $"✓ ($flake) checks passed" | ci log info
+              } catch {|err|
+                $"✗ ($flake) checks failed: ($err.msg)" | ci log error
+                exit 1
+              }
+            }
+
+            "All checks passed!" | ci log info
+          }

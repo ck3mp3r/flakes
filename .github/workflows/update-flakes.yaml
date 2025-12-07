@@ -1,0 +1,34 @@
+name: update-flakes
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "0 1 * * 0" # First run: Create PR (Sunday at 01:00, 1 hour after base-nixpkgs)
+    - cron: "30 1 * * 0" # Second run: Merge if checks pass (Sunday at 01:30)
+
+permissions:
+  contents: read
+
+jobs:
+  update-or-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Generate bot token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.BOT_ID }}
+          private-key: ${{ secrets.BOT }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update or merge flakes
+        uses: ./.github/actions/update-flake-locks
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          name: flakes
+          flakes: k8s-utils opencode rustnix slidev topiary-nu
