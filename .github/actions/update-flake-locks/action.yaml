@@ -71,7 +71,7 @@ runs:
           $"PR #($pr_number) exists for branch ($branch_name)" | ci log info
 
           # Get detailed PR info
-          let pr_info = (ci github pr info $pr_number)
+          let pr_info = ($pr_number | ci github pr info)
 
           if $pr_info.mergeable == "MERGEABLE" {
             $"All checks passed, merging PR #($pr_number)" | ci log info
