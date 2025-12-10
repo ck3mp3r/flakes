@@ -2,7 +2,7 @@
   description = "Pinned versions of nixpkgs (unstable and stable) for use across multiple projects";
   inputs = {
     unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    stable.url = "github:nixos/nixpkgs/nixos-25.11";
+    stable.url = "github:nixos/nixpkgs/release-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
   };
   outputs = inputs @ {flake-parts, ...}:
