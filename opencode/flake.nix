@@ -8,15 +8,15 @@
     # OpenCode and TUI binaries from GitHub releases
     # Update opencodeVersion below to change the version for all platforms
     opencode-linux-x64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.143/opencode-linux-x64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-x64.tar.gz";
       flake = false;
     };
     opencode-linux-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.143/opencode-linux-arm64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-arm64.tar.gz";
       flake = false;
     };
     opencode-darwin-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.143/opencode-darwin-arm64.zip";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -30,7 +30,7 @@
         ...
       }: let
         # OpenCode version - update this and the input URLs above when upgrading
-        opencodeVersion = "1.0.143";
+        opencodeVersion = "1.0.150";
 
         # Map system to the appropriate opencode binary input
         opencodeBinary =
@@ -159,9 +159,10 @@
                   ln -s "'"$out"'/version" "$XDG_CACHE_HOME/opencode/version"
                 fi
                 # Only copy models.json on first run (it updates itself afterward)
+                # Use -L to dereference the symlink and copy the actual file content
                 if [ ! -f "$XDG_CACHE_HOME/opencode/models.json" ]; then
-                  cp "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
-                  chmod +w "$XDG_CACHE_HOME/opencode/models.json"
+                  cp -L "'"$out"'/models.json" "$XDG_CACHE_HOME/opencode/models.json"
+                  chmod u+w "$XDG_CACHE_HOME/opencode/models.json"
                 fi'
           '';
         };
