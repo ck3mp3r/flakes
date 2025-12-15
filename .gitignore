@@ -8,3 +8,5 @@ result
 .secrets
 *.secrets
 .pre-commit-config.yaml
+
+.c5t/

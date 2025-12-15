@@ -8,11 +8,11 @@
       },
       "locked": {
         "dir": "base-nixpkgs",
-        "lastModified": 1765673438,
-        "narHash": "sha256-/IGH1T/KT3fbP0aM9riF6Gs+R9lMYQVF0WGywGklxEg=",
+        "lastModified": 1765678532,
+        "narHash": "sha256-wtUU82op1c94xOHbq63kDaAwgbiOzujELHsdVvzAnwQ=",
         "owner": "ck3mp3r",
         "repo": "flakes",
-        "rev": "1d8d0a52e4659d64f55645b3a3286d676ea421b5",
+        "rev": "e720a239e524a45f67409d407c0e38808f9bc263",
         "type": "github"
       },
       "original": {
@@ -45,11 +45,11 @@
         "nixpkgs-lib": "nixpkgs-lib_2"
       },
       "locked": {
-        "lastModified": 1765495779,
-        "narHash": "sha256-MhA7wmo/7uogLxiewwRRmIax70g6q1U/YemqTGoFHlM=",
+        "lastModified": 1765835352,
+        "narHash": "sha256-XswHlK/Qtjasvhd1nOa1e8MgZ8GS//jBoTqWtrS1Giw=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "5635c32d666a59ec9a55cab87e898889869f7b71",
+        "rev": "a34fae9c08a15ad73f295041fec82323541400a9",
         "type": "github"
       },
       "original": {
@@ -75,11 +75,11 @@
     },
     "nixpkgs-lib_2": {
       "locked": {
-        "lastModified": 1761765539,
-        "narHash": "sha256-b0yj6kfvO8ApcSE+QmA6mUfu8IYG6/uU28OFn4PaC8M=",
+        "lastModified": 1765674936,
+        "narHash": "sha256-k00uTP4JNfmejrCLJOwdObYC9jHRrr/5M/a/8L2EIdo=",
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "rev": "719359f4562934ae99f5443f20aa06c2ffff91fc",
+        "rev": "2075416fcb47225d9b68ac469a5c4801a9c4dd85",
         "type": "github"
       },
       "original": {
@@ -91,40 +91,40 @@
     "opencode-darwin-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1765483656,
-        "narHash": "sha256-t4jBbjLF5L9OzYIe2EdDjuCvyFNpsuvhm/QOYilzHwo=",
+        "lastModified": 1765830417,
+        "narHash": "sha256-C+raZeiYfQNOxLRnTwOEm/o37gliNxu7P5AB016hSPI=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-darwin-arm64.zip"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-darwin-arm64.zip"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-darwin-arm64.zip"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-darwin-arm64.zip"
       }
     },
     "opencode-linux-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1765483650,
-        "narHash": "sha256-LFfhariJhV6oBEGgEpNIsoO3fO2dUh1d5Dfm8jwLot8=",
+        "lastModified": 1765830411,
+        "narHash": "sha256-U+czp6aX2SePPbHRpu4oV9gX1fkjrVOG/xLIXCq0Apw=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-arm64.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-arm64.tar.gz"
       }
     },
     "opencode-linux-x64": {
       "flake": false,
       "locked": {
-        "lastModified": 1765483651,
-        "narHash": "sha256-57SCoSuq/xSEfpv+u96zUL4kXWOiJAX4KNv3Pirf3T4=",
+        "lastModified": 1765830412,
+        "narHash": "sha256-+tn0BdYcNVWiq1ZwzVZuDWtGEGjPJekkIE754opn0oY=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-x64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-x64.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.0.150/opencode-linux-x64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-x64.tar.gz"
       }
     },
     "root": {
