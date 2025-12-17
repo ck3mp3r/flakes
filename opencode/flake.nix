@@ -8,15 +8,15 @@
     # OpenCode and TUI binaries from GitHub releases
     # Update opencodeVersion below to change the version for all platforms
     opencode-linux-x64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-x64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-linux-x64.tar.gz";
       flake = false;
     };
     opencode-linux-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-linux-arm64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-linux-arm64.tar.gz";
       flake = false;
     };
     opencode-darwin-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.158/opencode-darwin-arm64.zip";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -30,7 +30,7 @@
         ...
       }: let
         # OpenCode version - update this and the input URLs above when upgrading
-        opencodeVersion = "1.0.158";
+        opencodeVersion = "1.0.164";
 
         # Map system to the appropriate opencode binary input
         opencodeBinary =
@@ -102,7 +102,11 @@
 
             # Then add the AI SDK packages that providers need at runtime
             # These are loaded dynamically when a provider is first used
-            ${pkgs.bun}/bin/bun add @ai-sdk/amazon-bedrock@latest @ai-sdk/anthropic@latest @ai-sdk/openai-compatible@latest @aws-sdk/credential-providers@latest 2>&1 || true
+            ${pkgs.bun}/bin/bun add @ai-sdk/amazon-bedrock@latest \
+              @ai-sdk/anthropic@latest \
+              @ai-sdk/openai-compatible@latest \
+              @aws-sdk/credential-providers@latest \
+              @franlol/opencode-md-table-formatter@0.0.3 2>&1 || true
 
             # OpenCode calls BunProc.install(pkg, "latest") and checks if package.json[pkg] === "latest"
             # But bun add pkg@latest writes "^x.y.z" to package.json, not "latest"
