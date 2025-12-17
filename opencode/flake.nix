@@ -115,7 +115,8 @@
               .dependencies["@ai-sdk/amazon-bedrock"] = "latest" |
               .dependencies["@ai-sdk/anthropic"] = "latest" |
               .dependencies["@ai-sdk/openai-compatible"] = "latest" |
-              .dependencies["@aws-sdk/credential-providers"] = "latest"
+              .dependencies["@aws-sdk/credential-providers"] = "latest" |
+              .dependencies["@franlol/opencode-md-table-formatter"] = "latest"
             ' package.json > package.json.tmp
             mv package.json.tmp package.json
 
