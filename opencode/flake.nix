@@ -8,15 +8,15 @@
     # OpenCode and TUI binaries from GitHub releases
     # Update opencodeVersion below to change the version for all platforms
     opencode-linux-x64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-linux-x64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.200/opencode-linux-x64.tar.gz";
       flake = false;
     };
     opencode-linux-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-linux-arm64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.200/opencode-linux-arm64.tar.gz";
       flake = false;
     };
     opencode-darwin-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.0.164/opencode-darwin-arm64.zip";
+      url = "https://github.com/sst/opencode/releases/download/v1.0.200/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -30,7 +30,7 @@
         ...
       }: let
         # OpenCode version - update this and the input URLs above when upgrading
-        opencodeVersion = "1.0.164";
+        opencodeVersion = "1.0.200";
 
         # Map system to the appropriate opencode binary input
         opencodeBinary =
