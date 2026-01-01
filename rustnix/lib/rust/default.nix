@@ -17,6 +17,7 @@ let
     system, # Build system (your machine)
     supportedTargets, # List of target architectures to support
     aliases ? [],
+    additionalTargets ? [], # Additional Rust targets to include in toolchain (e.g., ["wasm32-unknown-unknown"])
   }: let
     utils = import ../utils.nix;
 
@@ -48,11 +49,14 @@ let
 
       # Toolchain always comes from build system
       toolchain = with fenix.packages.${system};
-        combine [
-          stable.cargo
-          stable.rustc
-          targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
-        ];
+        combine (
+          [
+            stable.cargo
+            stable.rustc
+            targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
+          ]
+          ++ (map (target: targets.${target}.stable.rust-std) additionalTargets)
+        );
       callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
         // {
           config = fenixTarget;
