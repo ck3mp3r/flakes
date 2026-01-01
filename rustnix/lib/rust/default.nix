@@ -17,6 +17,7 @@ let
     system, # Build system (your machine)
     supportedTargets, # List of target architectures to support
     aliases ? [],
+    additionalTargets ? [], # Additional Rust targets to include in toolchain (e.g., ["wasm32-unknown-unknown"])
   }: let
     utils = import ../utils.nix;
 
