@@ -48,11 +48,14 @@ let
 
       # Toolchain always comes from build system
       toolchain = with fenix.packages.${system};
-        combine [
-          stable.cargo
-          stable.rustc
-          targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
-        ];
+        combine (
+          [
+            stable.cargo
+            stable.rustc
+            targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
+          ]
+          ++ (map (target: targets.${target}.stable.rust-std) additionalTargets)
+        );
       callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
         // {
           config = fenixTarget;
