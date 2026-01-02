@@ -20,8 +20,14 @@ pkgs.stdenvNoCC.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out/bin
-    ls
-    cp bin/${cargoToml.package.name} $out/bin/${cargoToml.package.name}
-    chmod +x $out/bin/${cargoToml.package.name}
+    ls -la bin/
+    for file in bin/*; do
+      if [ -f "$file" ]; then
+        if file "$file" | grep -q "executable"; then
+          cp "$file" $out/bin/
+          chmod +x $out/bin/$(basename "$file")
+        fi
+      fi
+    done
   '';
 }
