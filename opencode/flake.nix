@@ -106,6 +106,7 @@
               @ai-sdk/anthropic@latest \
               @ai-sdk/openai-compatible@latest \
               @aws-sdk/credential-providers@latest \
+              opencode-anthropic-auth@0.0.7 \
               @franlol/opencode-md-table-formatter@0.0.3 2>&1 || true
 
             # OpenCode calls BunProc.install(pkg, "latest") and checks if package.json[pkg] === "latest"
@@ -116,6 +117,7 @@
               .dependencies["@ai-sdk/anthropic"] = "latest" |
               .dependencies["@ai-sdk/openai-compatible"] = "latest" |
               .dependencies["@aws-sdk/credential-providers"] = "latest" |
+              .dependencies["opencode-anthropic-auth"] = "latest" |
               .dependencies["@franlol/opencode-md-table-formatter"] = "latest"
             ' package.json > package.json.tmp
             mv package.json.tmp package.json
