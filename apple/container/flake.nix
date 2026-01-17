@@ -1,35 +1,32 @@
 {
   description = "Apple Container - A container platform for macOS";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    devshell.url = "github:numtide/devshell";
+    base-nixpkgs.url = "github:ck3mp3r/flakes?dir=base-nixpkgs";
+    nixpkgs.follows = "base-nixpkgs/unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+
+    # Apple Container package from GitHub releases
+    apple-container-pkg = {
+      url = "https://github.com/apple/container/releases/download/0.7.1/container-installer-signed.pkg";
+      flake = false;
+    };
   };
-  outputs = {
-    nixpkgs,
-    flake-utils,
-    devshell,
-    ...
-  }:
-    flake-utils.lib.eachSystem ["aarch64-darwin" "x86_64-darwin"] (
-      system: let
-        pkgs = import nixpkgs {
+  outputs = inputs @ {flake-parts, ...}:
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["aarch64-darwin" "x86_64-darwin"];
+
+      perSystem = {system, ...}: let
+        # Import nixpkgs with allowUnfree
+        pkgs = import inputs.nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [
-            devshell.overlays.default
-          ];
         };
-
         # Download and extract the precompiled container package
         apple-container = pkgs.stdenv.mkDerivation {
           pname = "apple-container";
-          version = "0.3.0";
+          version = "0.7.1";
 
-          src = pkgs.fetchurl {
-            url = "https://github.com/apple/container/releases/download/0.3.0/container-0.3.0-installer-signed.pkg";
-            sha256 = "D3oAhATmZhGA6mehw6UEAY5Xwu8jjvTNqNcPKBUWxuY="; # Need actual hash
-          };
+          src = inputs.apple-container-pkg;
 
           nativeBuildInputs = with pkgs; [
             xar
@@ -56,23 +53,14 @@
           };
         };
       in {
-        devShells.default = pkgs.devshell.mkShell {
-          imports = [(pkgs.devshell.importTOML ./devshell.toml)];
-          packages = [
-            apple-container
-          ];
-        };
+        formatter = pkgs.alejandra;
 
-        packages = {
-          default = apple-container;
-        };
+        packages.default = apple-container;
 
-        apps = {
-          default = {
-            type = "app";
-            program = "${apple-container}/bin/container";
-          };
+        apps.default = {
+          type = "app";
+          program = "${apple-container}/bin/container";
         };
-      }
-    );
+      };
+    };
 }
