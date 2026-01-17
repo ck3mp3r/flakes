@@ -8,15 +8,15 @@
     # OpenCode and TUI binaries from GitHub releases
     # Update opencodeVersion below to change the version for all platforms
     opencode-linux-x64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.1.20/opencode-linux-x64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.1.25/opencode-linux-x64.tar.gz";
       flake = false;
     };
     opencode-linux-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.1.20/opencode-linux-arm64.tar.gz";
+      url = "https://github.com/sst/opencode/releases/download/v1.1.25/opencode-linux-arm64.tar.gz";
       flake = false;
     };
     opencode-darwin-arm64 = {
-      url = "https://github.com/sst/opencode/releases/download/v1.1.20/opencode-darwin-arm64.zip";
+      url = "https://github.com/sst/opencode/releases/download/v1.1.25/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -30,7 +30,7 @@
         ...
       }: let
         # OpenCode version - update this and the input URLs above when upgrading
-        opencodeVersion = "1.1.20";
+        opencodeVersion = "1.1.25";
 
         # Map system to the appropriate opencode binary input
         opencodeBinary =
@@ -104,6 +104,7 @@
             # These are loaded dynamically when a provider is first used
             ${pkgs.bun}/bin/bun add @ai-sdk/amazon-bedrock@latest \
               @ai-sdk/anthropic@latest \
+              @ai-sdk/google@latest \
               @ai-sdk/openai-compatible@latest \
               @aws-sdk/credential-providers@latest \
               opencode-anthropic-auth@0.0.8 \
@@ -115,6 +116,7 @@
             ${pkgs.jq}/bin/jq '
               .dependencies["@ai-sdk/amazon-bedrock"] = "latest" |
               .dependencies["@ai-sdk/anthropic"] = "latest" |
+              .dependencies["@ai-sdk/google"] = "latest" |
               .dependencies["@ai-sdk/openai-compatible"] = "latest" |
               .dependencies["@aws-sdk/credential-providers"] = "latest" |
               .dependencies["opencode-anthropic-auth"] = "latest" |
