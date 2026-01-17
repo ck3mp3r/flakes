@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

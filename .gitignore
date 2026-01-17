@@ -10,3 +10,4 @@ result
 .pre-commit-config.yaml
 
 .c5t/
+.crush/
