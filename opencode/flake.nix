@@ -107,8 +107,7 @@
               @ai-sdk/google@latest \
               @ai-sdk/openai-compatible@latest \
               @aws-sdk/credential-providers@latest \
-              opencode-anthropic-auth@0.0.8 \
-              @franlol/opencode-md-table-formatter@0.0.3 2>&1 || true
+              opencode-anthropic-auth@0.0.8 2>&1 || true
 
             # OpenCode calls BunProc.install(pkg, "latest") and checks if package.json[pkg] === "latest"
             # But bun add pkg@latest writes "^x.y.z" to package.json, not "latest"
@@ -119,8 +118,7 @@
               .dependencies["@ai-sdk/google"] = "latest" |
               .dependencies["@ai-sdk/openai-compatible"] = "latest" |
               .dependencies["@aws-sdk/credential-providers"] = "latest" |
-              .dependencies["opencode-anthropic-auth"] = "latest" |
-              .dependencies["@franlol/opencode-md-table-formatter"] = "latest"
+              .dependencies["opencode-anthropic-auth"] = "latest"
             ' package.json > package.json.tmp
             mv package.json.tmp package.json
 
