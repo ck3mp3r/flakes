@@ -3,7 +3,7 @@
   inputs = {
     base-nixpkgs.url = "github:ck3mp3r/flakes?dir=base-nixpkgs";
     nixpkgs.follows = "base-nixpkgs/unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     tree-sitter-nu = {
       url = "github:nushell/tree-sitter-nu";
       flake = false;
@@ -13,23 +13,14 @@
       flake = false;
     };
   };
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    tree-sitter-nu,
-    topiary-nushell,
-    ...
-  }:
-    flake-utils.lib.eachDefaultSystem (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          config = {allowUnfree = true;};
-        };
+  outputs = inputs @ {flake-parts, ...}:
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
+
+      perSystem = {pkgs, ...}: let
         treeSitterNu = pkgs.stdenv.mkDerivation {
           name = "tree-sitter-nu";
-          src = tree-sitter-nu;
+          src = inputs.tree-sitter-nu;
 
           buildInputs = [pkgs.tree-sitter pkgs.nodejs];
 
@@ -46,7 +37,7 @@
 
         topiaryNu = pkgs.stdenvNoCC.mkDerivation {
           name = "topiary-nu";
-          src = topiary-nushell;
+          src = inputs.topiary-nushell;
 
           buildPhase = ''
             mkdir $out
@@ -69,11 +60,12 @@
       in {
         formatter = pkgs.alejandra;
         packages.default = topiaryNu;
-      }
-    )
-    // {
-      overlays.default = final: prev: {
-        topiary-nu = self.packages.${final.system}.default;
+      };
+
+      flake = {
+        overlays.default = final: prev: {
+          topiary-nu = inputs.self.packages.${final.system}.default;
+        };
       };
     };
 }
