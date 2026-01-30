@@ -64,7 +64,7 @@
 
       flake = {
         overlays.default = final: prev: {
-          topiary-nu = inputs.self.packages.${final.system}.default;
+          topiary-nu = inputs.self.packages.${final.stdenv.hostPlatform.system}.default;
         };
       };
     };
