@@ -91,40 +91,40 @@
     "opencode-darwin-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1770332073,
-        "narHash": "sha256-5ZxPr7OFLlM7UdLUR6TJa4kvwWtvy1CtdV8sYjG09j8=",
+        "lastModified": 1770920913,
+        "narHash": "sha256-Ji0juEx36lfq1lEa15bc8GedRo0kxRotTTdGHB/HaLs=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-darwin-arm64.zip"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-darwin-arm64.zip"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-darwin-arm64.zip"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-darwin-arm64.zip"
       }
     },
     "opencode-linux-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1770332060,
-        "narHash": "sha256-qEFelYd9qSGOH9Z46J9qZSSvXuR4gU6X9rsYZwL0ikk=",
+        "lastModified": 1770920901,
+        "narHash": "sha256-0sKzxdD49hXFcFOLPeN+9yzxmT2/k6C/JmhM1/ypayE=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-linux-arm64.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-linux-arm64.tar.gz"
       }
     },
     "opencode-linux-x64": {
       "flake": false,
       "locked": {
-        "lastModified": 1770332061,
-        "narHash": "sha256-2RjMRtti9YxNKd21LA1TcOc9xJm9mqmxCW3oLJxFXYA=",
+        "lastModified": 1770920902,
+        "narHash": "sha256-exSDA3AkdqSWIR8pj+GEdirEbOpJ8LUJeFGZR0KP8dM=",
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-linux-x64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-linux-x64.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/sst/opencode/releases/download/v1.1.53/opencode-linux-x64.tar.gz"
+        "url": "https://github.com/sst/opencode/releases/download/v1.1.63/opencode-linux-x64.tar.gz"
       }
     },
     "root": {
