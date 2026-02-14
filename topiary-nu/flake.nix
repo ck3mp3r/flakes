@@ -40,8 +40,7 @@
           src = inputs.topiary-nushell;
 
           buildPhase = ''
-            mkdir $out
-            cat <<EOF > $out/languages.ncl
+            cat <<EOF > languages.ncl
             {
               languages = {
                 nu = {
@@ -54,7 +53,8 @@
           '';
 
           installPhase = ''
-            cp -r $src/languages $out
+            mkdir -p $out
+            cp languages.ncl $out/languages.ncl
           '';
         };
       in {
