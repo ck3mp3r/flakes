@@ -35,8 +35,8 @@
           '';
         };
 
-        topiaryNu = pkgs.stdenvNoCC.mkDerivation {
-          name = "topiary-nu";
+        topiaryConfigDir = pkgs.stdenvNoCC.mkDerivation {
+          name = "topiary-nu-config";
           src = inputs.topiary-nushell;
 
           buildPhase = ''
@@ -53,8 +53,21 @@
           '';
 
           installPhase = ''
-            mkdir -p $out
+            mkdir -p $out/queries
             cp languages.ncl $out/languages.ncl
+            cp queries/nu.scm $out/queries/nu.scm
+          '';
+        };
+
+        topiaryNu = pkgs.writeShellApplication {
+          name = "topiary";
+          runtimeInputs = [pkgs.topiary];
+          runtimeEnv = {
+            TOPIARY_CONFIG_FILE = "${topiaryConfigDir}/languages.ncl";
+            TOPIARY_LANGUAGE_DIR = "${topiaryConfigDir}/queries";
+          };
+          text = ''
+            exec topiary "$@"
           '';
         };
       in {
