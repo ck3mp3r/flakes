@@ -8,11 +8,11 @@
       },
       "locked": {
         "dir": "base-nixpkgs",
-        "lastModified": 1772326923,
-        "narHash": "sha256-+h52NxLIp5oapPCBcgU5gLF1D27GDG/yBTSVZhMWngk=",
+        "lastModified": 1772904427,
+        "narHash": "sha256-+4q5UiC4BbCKCf96CveRXKl5Q2k6vv8F/fFyE/8z7zg=",
         "owner": "ck3mp3r",
         "repo": "flakes",
-        "rev": "092237326a1699dbc7cd837f14947384ff475391",
+        "rev": "b15fd455014c907a939dd9f0b260e4e7e9f10129",
         "type": "github"
       },
       "original": {
@@ -108,11 +108,11 @@
     "slidev-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1772176671,
-        "narHash": "sha256-7dRrQXyQjENqM2QXqT0eQXP+rDflQ1r9fLa0dzKn8cs=",
+        "lastModified": 1772520374,
+        "narHash": "sha256-GIg4KU2TJMSZXjnB+A8MPZUUp1/M1YX5ctO13dfmOz0=",
         "owner": "slidevjs",
         "repo": "slidev",
-        "rev": "470285fe3a806e176b5cf8fbb7a74d4d0c0aade6",
+        "rev": "c8a7b7d639ff0a26cf3de036505668263ef5a3b0",
         "type": "github"
       },
       "original": {
