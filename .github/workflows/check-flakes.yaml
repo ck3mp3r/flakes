@@ -3,6 +3,8 @@ on:
   push:
     branches-ignore:
       - main
+    paths-ignore:
+      - 'base-nixpkgs/**'
 
 permissions:
   contents: read
@@ -27,8 +29,8 @@ jobs:
         run: |
           use ci *
 
-          # Get changed directories from last commit (excluding nix-base)
-          let paths_to_check = (git diff --name-only HEAD~1 HEAD | lines | each {|f| $f | path expand | path dirname} | where {|p| not ($p | str contains "base-nixpkgs")})
+          # Get changed directories from last commit
+          let paths_to_check = (git diff --name-only HEAD~1 HEAD | lines | each {|f| $f | path expand | path dirname})
 
           # Get actual flakes from changed paths
           let changed_flakes = ($paths_to_check | ci nix flakes)
