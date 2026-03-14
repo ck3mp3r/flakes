@@ -5,8 +5,14 @@ path: .
 windows:
   - name: code
     panes:
-      - commands: # each pane/window can run commands
+      - flex: 2
+        commands:
           - command: nvim
+      - flex: 1
+        commands:
+          - command: ^opencode
+            args:
+              - --port
 
   - name: misc
     panes:
