@@ -8,11 +8,11 @@
       },
       "locked": {
         "dir": "base-nixpkgs",
-        "lastModified": 1772962381,
-        "narHash": "sha256-qRw6S9QUnZuSaRI5JyUqPs9TaGx+loKc3sbizUA/7yQ=",
+        "lastModified": 1773486126,
+        "narHash": "sha256-cNW4Uh76I1B6sSbAF9I7twf1zXYLnqdW2OdRKZvbaoA=",
         "owner": "ck3mp3r",
         "repo": "flakes",
-        "rev": "ac7b8d1e8e1454de308a5a002176170b4437c94a",
+        "rev": "b0117397d96ade1bf842acf31a17a863db67d2ad",
         "type": "github"
       },
       "original": {
