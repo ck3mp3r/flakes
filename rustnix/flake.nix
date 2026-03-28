@@ -9,18 +9,10 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    devenv = {
-      url = "github:cachix/devenv";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs @ {flake-parts, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
-      imports = [
-        inputs.devenv.flakeModule
-      ];
-
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
       flake = {
@@ -40,17 +32,11 @@
 
         formatter = pkgs.alejandra;
 
-        devenv.shells.default = {
+        devShells.default = pkgs.mkShellNoCC {
           packages = with pkgs; [
             alejandra
             inputs'.fenix.packages.stable.toolchain
           ];
-
-          git-hooks.hooks = {
-            alejandra.enable = true;
-          };
-
-          containers = pkgs.lib.mkForce {};
         };
 
         checks = {
