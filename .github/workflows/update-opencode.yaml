@@ -2,8 +2,8 @@ name: update-opencode
 on:
   workflow_dispatch: # allows manual triggering
   schedule:
-    - cron: "0 2 * * 0" # First run: Create PR (Sunday at 02:00, after flakes update)
-    - cron: "30 2 * * 0" # Second run: Merge if checks pass (Sunday at 02:30)
+    - cron: "0 2 * * *" # First run: Create PR (daily at 02:00)
+    - cron: "30 2 * * *" # Second run: Merge if checks pass (daily at 02:30)
 
 permissions:
   contents: write
@@ -51,7 +51,7 @@ jobs:
           $"Latest OpenCode version: ($latest_version)" | ci log info
 
           # Read current version from flake.nix
-          let current_version = (open opencode/flake.nix | lines | find "opencodeVersion = " | first | parse "opencodeVersion = \"{version}\";" | get version.0)
+          let current_version = (open --raw opencode/flake.nix | lines | find "opencodeVersion = " | first | split row '"' | get 1)
 
           $"Current OpenCode version: ($current_version)" | ci log info
 
@@ -99,18 +99,19 @@ jobs:
             # Update the flake.nix file
             let flake_content = (open opencode/flake.nix)
 
-            # Update version number (line 33)
-            let updated_content = ($flake_content | str replace $'opencodeVersion = "($current_version)";' $'opencodeVersion = "($latest_version)";')
+            # Update version number using regex
+            let updated_content = ($flake_content | str replace --regex 'opencodeVersion\s*=\s*"[^"]+"' $'opencodeVersion = "($latest_version)"')
 
-            # Update all release URLs
-            let updated_content = ($updated_content 
-              | str replace --all $'/download/v($current_version)/' $'/download/v($latest_version)/')
+            # Update all release URLs using regex
+            let updated_content = ($updated_content | str replace --all --regex '/download/v[0-9.]+/' $'/download/v($latest_version)/')
 
             # Write back to file
             $updated_content | save -f opencode/flake.nix
 
-            # Update flake.lock
-            ["opencode"] | ci nix update
+            # Update flake.lock with new input URLs
+            cd opencode
+            nix flake lock
+            cd ..
 
             # Stage, commit, and push
             let pr_title = $"chore: update opencode to v($latest_version)"
