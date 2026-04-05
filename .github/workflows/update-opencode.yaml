@@ -1,0 +1,128 @@
+name: update-opencode
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "0 2 * * 0" # First run: Create PR (Sunday at 02:00, after flakes update)
+    - cron: "30 2 * * 0" # Second run: Merge if checks pass (Sunday at 02:30)
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  update-or-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Generate bot token
+        id: generate-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.BOT_ID }}
+          private-key: ${{ secrets.BOT }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Setup CI Tools
+        uses: ck3mp3r/actions/ci-tools@main
+
+      - name: Update or merge OpenCode
+        shell: nu {0}
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          use ci *
+
+          "ck3mp3r-bot[bot]@users.noreply.github.com" | ci scm config
+
+          # Get the latest release from anomalyco/opencode
+          "Checking latest OpenCode release..." | ci log info
+          let latest = (gh release view --repo anomalyco/opencode --json tagName,publishedAt | from json)
+          let latest_version = ($latest.tagName | str replace 'v' '')
+
+          $"Latest OpenCode version: ($latest_version)" | ci log info
+
+          # Read current version from flake.nix
+          let current_version = (open opencode/flake.nix | lines | find "opencodeVersion = " | first | parse "opencodeVersion = \"{version}\";" | get version.0)
+
+          $"Current OpenCode version: ($current_version)" | ci log info
+
+          if $latest_version == $current_version {
+            "OpenCode is already up to date!" | ci log info
+            exit 0
+          }
+
+          $"Updating OpenCode from ($current_version) to ($latest_version)" | ci log info
+
+          # Create or checkout branch
+          let branch_result = ("update-opencode" | ci scm branch --chore --reuse)
+
+          if $branch_result.status != "success" {
+            $"Failed to create/checkout branch: ($branch_result.error)" | ci log error
+            exit 1
+          }
+
+          let branch_name = $branch_result.branch
+
+          # Check if PR already exists for this branch
+          let existing_prs = (ci github pr check --target main)
+
+          if ($existing_prs | is-not-empty) {
+            # PR exists - this is the second run, check if we should merge
+            let pr = $existing_prs | first
+            let pr_number = $pr.number
+
+            $"PR #($pr_number) exists for branch ($branch_name)" | ci log info
+
+            # Get detailed PR info
+            let pr_info = ($pr_number | ci github pr info)
+
+            if $pr_info.mergeable == "MERGEABLE" {
+              $"All checks passed, merging PR #($pr_number)" | ci log info
+              ci github pr merge $pr_number --method squash
+              $"PR merged successfully!" | ci log info
+            } else {
+              $"PR #($pr_number) is not mergeable yet (status: ($pr_info.mergeable))" | ci log warning
+            }
+          } else {
+            # No PR exists - this is the first run, update and create PR
+            $"No existing PR for branch ($branch_name), updating OpenCode..." | ci log info
+
+            # Update the flake.nix file
+            let flake_content = (open opencode/flake.nix)
+
+            # Update version number (line 33)
+            let updated_content = ($flake_content | str replace $'opencodeVersion = "($current_version)";' $'opencodeVersion = "($latest_version)";')
+
+            # Update all release URLs
+            let updated_content = ($updated_content 
+              | str replace --all $'/download/v($current_version)/' $'/download/v($latest_version)/')
+
+            # Write back to file
+            $updated_content | save -f opencode/flake.nix
+
+            # Update flake.lock
+            ["opencode"] | ci nix update
+
+            # Stage, commit, and push
+            let pr_title = $"chore: update opencode to v($latest_version)"
+            let commit_result = (ci scm commit --message $pr_title --push)
+
+            if $commit_result.pushed {
+              # Create PR
+              let pr_body = $"Automated update of OpenCode from v($current_version) to v($latest_version).\n\nRelease notes: https://github.com/anomalyco/opencode/releases/tag/v($latest_version)"
+
+              let pr_info = (ci github pr create $pr_title $pr_body)
+              $"Created PR #($pr_info.number): ($pr_info.url)" | ci log info
+            } else {
+              $"No changes to OpenCode" | ci log info
+            }
+          }
