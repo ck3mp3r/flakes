@@ -1,0 +1,110 @@
+# ============================================= #
+# Base Configuration
+# ============================================= #
+
+# Set PATH in tmux server environment so plugins can find tmux
+set-environment -g PATH "@tmuxBin@/bin:$PATH"
+
+set -g base-index 1
+setw -g pane-base-index 1
+set -g mode-keys vi
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+
+# Terminal settings
+set-option -sa terminal-overrides ",xterm*:Tc"
+set -g default-terminal "tmux-256color"
+set -g mouse on
+set -g status-position top
+set -g popup-border-lines "rounded"
+set -g renumber-window on
+
+# Pane styling
+set -g pane-border-lines heavy
+set -g pane-border-status bottom
+set -g status-interval 5
+
+# Clipboard integration
+set -s set-clipboard on
+set -g set-clipboard on
+
+# Vi-mode clipboard bindings
+bind-key -T copy-mode-vi v send-keys -X begin-selection
+bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
+bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
+
+# Prefix + a to switch to last window (C-a a)
+bind-key a last-window
+
+# Smart pane switching with awareness of Vim splits
+is_vim="ps -o state= -o comm= -t '#{pane_tty}' \
+    | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|l?n?vim?x?)(diff)?$'"
+bind-key -n 'C-h' if-shell "$is_vim" 'send-keys C-h'  'select-pane -L'
+bind-key -n 'C-j' if-shell "$is_vim" 'send-keys C-j'  'select-pane -D'
+bind-key -n 'C-k' if-shell "$is_vim" 'send-keys C-k'  'select-pane -U'
+bind-key -n 'C-l' if-shell "$is_vim" 'send-keys C-l'  'select-pane -R'
+tmux_version='$(tmux -V | sed -En "s/^tmux ([0-9]+(.[0-9]+)?).*/\1/p")'
+if-shell -b '[ "$(echo "$tmux_version < 3.0" | bc)" = 1 ]' \
+    "bind-key -n 'C-\\' if-shell \"$is_vim\" 'send-keys C-\\'  'select-pane -l'"
+if-shell -b '[ "$(echo "$tmux_version >= 3.0" | bc)" = 1 ]' \
+    "bind-key -n 'C-\\' if-shell \"$is_vim\" 'send-keys C-\\\\'  'select-pane -l'"
+
+bind-key -T copy-mode-vi 'C-h' select-pane -L
+bind-key -T copy-mode-vi 'C-j' select-pane -D
+bind-key -T copy-mode-vi 'C-k' select-pane -U
+bind-key -T copy-mode-vi 'C-l' select-pane -R
+bind-key -T copy-mode-vi 'C-\' select-pane -l
+
+bind -n M-k send-keys "clear" Enter
+
+# Reload configuration
+bind-key r source-file "$TMUX_CONFIG_PATH" \; display-message "Config reloaded!"
+
+# ============================================= #
+# Load plugins with Home Manager pattern
+# ============================================= #
+
+# copycat
+run-shell @tmuxPluginsCopycat@/share/tmux-plugins/copycat/copycat.tmux
+
+# pain-control
+run-shell @tmuxPluginsPainControl@/share/tmux-plugins/pain-control/pain_control.tmux
+
+# yank
+run-shell @tmuxPluginsYank@/share/tmux-plugins/yank/yank.tmux
+
+# catppuccin
+set -g @catppuccin_flavor "mocha"
+set -g @catppuccin_window_status_style "rounded"
+set -g @catppuccin_status_background "#242638"
+set -ogq @catppuccin_window_number_position "right"
+set -ogq @catppuccin_window_text "#W"
+set -ogq @catppuccin_window_current_text "#W"
+set -ogq @catppuccin_pane_status_enabled "yes"
+set -ogq @catppuccin_pane_border_status "yes"
+set -ogq @catppuccin_pane_default_text "##{b:pane_title}"
+set -ogq @catppuccin_pane_number_position "right"
+
+run-shell @tmuxCatppuccin@/share/tmux-plugins/catppuccin/catppuccin.tmux
+
+# Source custom status modules (these define @catppuccin_*_text with #{cpu_percentage} etc)
+source -F "@tmuxCatppuccin@/share/tmux-plugins/catppuccin/status/cpu.conf"
+source -F "@tmuxCatppuccin@/share/tmux-plugins/catppuccin/status/ram.conf"
+source -F "@tmuxCatppuccin@/share/tmux-plugins/catppuccin/status/gpu.conf"
+source -F "@tmuxCatppuccin@/share/tmux-plugins/catppuccin/status/battery.conf"
+
+# Set status bar (this expands @catppuccin_status_* which contain #{cpu_percentage} etc)
+set -g status-justify 'centre'
+set -g status-left-length 150
+set -g status-right-length 150
+set -g status-left "#{E:@catppuccin_status_session} "
+set -g status-right ""
+set -agF status-right "#{E:@catppuccin_status_gpu}"
+set -agF status-right "#{E:@catppuccin_status_cpu}"
+set -agF status-right "#{E:@catppuccin_status_ram}"
+set -agF status-right "#{E:@catppuccin_status_battery}"
+
+# Load plugins LAST so they can replace #{cpu_percentage} with #(script.sh)
+run-shell @tmuxPluginsBattery@/share/tmux-plugins/battery/battery.tmux
+run-shell @tmuxMonitor@/share/tmux-plugins/monitor/monitor.tmux

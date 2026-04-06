@@ -6,8 +6,7 @@
     base-nixpkgs.url = "path:./base-nixpkgs";
 
     # Flake-parts for modular flake structure
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    flake-parts.inputs.nixpkgs-lib.follows = "base-nixpkgs/unstable";
+    flake-parts.follows = "base-nixpkgs/flake-parts";
   };
 
   outputs = inputs @ {flake-parts, ...}:
