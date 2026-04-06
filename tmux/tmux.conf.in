@@ -105,6 +105,21 @@ set -agF status-right "#{E:@catppuccin_status_cpu}"
 set -agF status-right "#{E:@catppuccin_status_ram}"
 set -agF status-right "#{E:@catppuccin_status_battery}"
 
+# Battery icon configuration - Nerd Font battery icons
+set -g @batt_icon_status_charged '\U000f06a5'  # plug when fully charged (f06a5 -> U+1F50C)
+set -g @batt_icon_status_charging '\U000f0084'  # lightning when charging (⚡ U+26A1)
+
+# Battery charge level icons (Material Design Icons from Nerd Fonts)
+# Using \U000F#### format for 5-digit hex codes
+set -g @batt_icon_charge_tier8 '\U000f0083'  # >= 95% (100% icon - f0083)
+set -g @batt_icon_charge_tier7 '\U000f0082'  # >= 80% (90% icon - f0082)
+set -g @batt_icon_charge_tier6 '\U000f0081'  # >= 65% (80% icon - f0081)
+set -g @batt_icon_charge_tier5 '\U000f0080'  # >= 50% (70% icon - f0080)
+set -g @batt_icon_charge_tier4 '\U000f007f'  # >= 35% (60% icon - f007f)
+set -g @batt_icon_charge_tier3 '\U000f007e'  # >= 20% (50% icon - f007e)
+set -g @batt_icon_charge_tier2 '\U000f007c'  # > 5%   (30% icon - f007c)
+set -g @batt_icon_charge_tier1 '\U000f007a'  # <= 5%  (10% icon - f007a)
+
 # Load plugins LAST so they can replace #{cpu_percentage} with #(script.sh)
 run-shell @tmuxPluginsBattery@/share/tmux-plugins/battery/battery.tmux
 run-shell @tmuxMonitor@/share/tmux-plugins/monitor/monitor.tmux
