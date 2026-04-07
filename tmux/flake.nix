@@ -24,7 +24,7 @@
         catppuccinStatusSrc = ./plugins/catppuccin;
 
         # Merge catppuccin base with custom status modules
-        mergedSources = pkgs.stdenv.mkDerivation {
+        mergedSources = pkgs.stdenvNoCC.mkDerivation {
           name = "mergedSources";
           buildInputs = with pkgs; [rsync];
 
@@ -105,7 +105,7 @@
         };
 
         # Development shell with tmux available
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShellNoCC {
           packages = [tmuxWrapper];
           shellHook = ''
             echo "Portable tmux with custom configuration available!"
