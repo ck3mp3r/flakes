@@ -24,10 +24,17 @@
       };
 
       perSystem = {
-        pkgs,
+        system,
         inputs',
         ...
-      }: {
+      }: let
+        # Import nixpkgs with base-nixpkgs overlay
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [inputs.base-nixpkgs.overlays.default];
+          config.allowUnfree = true;
+        };
+      in {
         packages = {};
 
         formatter = pkgs.alejandra;

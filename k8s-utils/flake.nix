@@ -8,13 +8,16 @@
   outputs = {
     self,
     nixpkgs,
+    base-nixpkgs,
     flake-utils,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
+        # Import nixpkgs with base-nixpkgs overlay
         pkgs = import nixpkgs {
           inherit system;
+          overlays = [base-nixpkgs.overlays.default];
           config = {allowUnfree = true;};
         };
 

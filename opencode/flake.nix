@@ -24,11 +24,13 @@
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
 
-      perSystem = {
-        pkgs,
-        system,
-        ...
-      }: let
+      perSystem = {system, ...}: let
+        # Import nixpkgs with base-nixpkgs overlay
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [inputs.base-nixpkgs.overlays.default];
+          config.allowUnfree = true;
+        };
         # OpenCode version - update this and the input URLs above when upgrading
         opencodeVersion = "1.14.18";
 

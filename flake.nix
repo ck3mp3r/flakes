@@ -14,8 +14,12 @@
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
       perSystem = {system, ...}: let
-        # Get packages from base-nixpkgs (unstable)
-        pkgs = inputs.base-nixpkgs.legacyPackages.${system};
+        # Import nixpkgs with base-nixpkgs overlay (from base-nixpkgs/unstable)
+        pkgs = import inputs.base-nixpkgs.inputs.unstable {
+          inherit system;
+          overlays = [inputs.base-nixpkgs.overlays.default];
+          config.allowUnfree = true;
+        };
       in {
         # Provide pkgs to modules
         _module.args.pkgs = pkgs;

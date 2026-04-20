@@ -17,13 +17,19 @@
 
   outputs = {
     nixpkgs,
+    base-nixpkgs,
     flake-utils,
     devshell,
     slidev-src,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
+      # Import nixpkgs with base-nixpkgs overlay
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [base-nixpkgs.overlays.default];
+        config.allowUnfree = true;
+      };
       devshellPkgs = devshell.legacyPackages.${system};
 
       # Read package info from the CLI package

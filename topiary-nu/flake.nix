@@ -17,7 +17,14 @@
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
-      perSystem = {pkgs, ...}: let
+      perSystem = {system, ...}: let
+        # Import nixpkgs with base-nixpkgs overlay
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [inputs.base-nixpkgs.overlays.default];
+          config.allowUnfree = true;
+        };
+
         treeSitterNu = pkgs.stdenv.mkDerivation {
           name = "tree-sitter-nu";
           src = inputs.tree-sitter-nu;
