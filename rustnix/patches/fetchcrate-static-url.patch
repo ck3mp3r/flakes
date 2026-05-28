@@ -1,0 +1,11 @@
+--- a/pkgs/build-support/rust/import-cargo-lock.nix
++++ b/pkgs/build-support/rust/import-cargo-lock.nix
+@@ -130,7 +130,7 @@
+     };
+
+   registries = {
+-    "https://github.com/rust-lang/crates.io-index" = "https://crates.io/api/v1/crates";
++    "https://github.com/rust-lang/crates.io-index" = "https://static.crates.io/crates";
+   }
+   // extraRegistries;
+

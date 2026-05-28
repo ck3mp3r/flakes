@@ -1,11 +1,68 @@
-let
+{fenix}: let
+  utils = import ../utils.nix;
+
+  # Workaround: crates.io API returns 403 for downloads.
+  # Patch nixpkgs to use static.crates.io. Remove when nixpkgs#525067 is merged.
+  patchedNixpkgs = system: nixpkgs: let
+    unpatchedPkgs = import nixpkgs {inherit system;};
+  in
+    unpatchedPkgs.applyPatches {
+      name = "nixpkgs-fetchcrate-patched";
+      src = nixpkgs;
+      patches = [../../patches/fetchcrate-static-url.patch];
+    };
+
+  mkPkgs = {
+    system,
+    nixpkgs,
+    overlays ? [],
+    config ? {},
+  }:
+    import (patchedNixpkgs system nixpkgs) {
+      inherit system overlays;
+      config = {allowUnfree = true;} // config;
+    };
+
+  mkToolchain = {
+    system,
+    targets ? [],
+    extras ? [],
+    variant ? "musl",
+  }: let
+    fenixTarget = utils.getTarget {inherit system variant;};
+    baseToolchain = [
+      fenix.packages.${system}.stable.cargo
+      fenix.packages.${system}.stable.rustc
+      fenix.packages.${system}.targets.${fenixTarget}.stable.rust-std
+    ];
+    additionalStd = map (t: fenix.packages.${system}.targets.${t}.stable.rust-std) targets;
+    extraComponents = map (e: fenix.packages.${system}.stable.${e}) extras;
+  in
+    fenix.packages.${system}.combine (baseToolchain ++ additionalStd ++ extraComponents);
+
+  mkRustPlatform = {
+    system,
+    nixpkgs,
+    overlays ? [],
+    targets ? [],
+    extras ? [],
+    variant ? "musl",
+    config ? {},
+  }: let
+    pkgs = mkPkgs {inherit system nixpkgs overlays config;};
+    toolchain = mkToolchain {inherit system targets extras variant;};
+  in
+    pkgs.makeRustPlatform {
+      cargo = toolchain;
+      rustc = toolchain;
+    };
+
   buildTargetOutputs = {
     archiveAndHash ? false,
     buildInputs ? [],
     cargoLock,
     cargoToml,
     extraArgs ? {},
-    fenix,
     installData,
     linuxVariant ? "musl",
     nativeBuildInputs ? [],
@@ -19,8 +76,6 @@ let
     aliases ? [],
     additionalTargets ? [], # Additional Rust targets to include in toolchain (e.g., ["wasm32-unknown-unknown"])
   }: let
-    utils = import ../utils.nix;
-
     # Check if current system is supported
     isSystemSupported = builtins.elem system supportedTargets;
 
@@ -37,7 +92,7 @@ let
       tmpPkgs =
         if isCrossCompiling || isTargetLinux
         then
-          import nixpkgs {
+          import (patchedNixpkgs system nixpkgs) {
             inherit overlays system; # Build on 'system'
             crossSystem = {
               config = fenixTarget;
@@ -45,7 +100,7 @@ let
               isStatic = isTargetLinux; # Static musl builds for Linux
             };
           }
-        else import nixpkgs {inherit overlays system;};
+        else import (patchedNixpkgs system nixpkgs) {inherit overlays system;};
 
       # Toolchain always comes from build system
       toolchain = with fenix.packages.${system};
@@ -130,5 +185,6 @@ let
     in
       basePackages // namedPackage // aliasPackages;
 in {
-  inherit buildTargetOutputs;
+  inherit buildTargetOutputs mkPkgs mkToolchain mkRustPlatform;
+  overlays.fenix = fenix.overlays.default;
 }

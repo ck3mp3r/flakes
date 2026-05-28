@@ -17,7 +17,7 @@
 
       flake = {
         lib = {
-          rust = import ./lib/rust;
+          rust = import ./lib/rust {inherit (inputs) fenix;};
           archiveAndHash = import ./lib/archiveAndHash.nix;
           utils = import ./lib/utils.nix;
         };
