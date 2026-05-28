@@ -8,15 +8,15 @@
     # OpenCode and TUI binaries from GitHub releases
     # Update opencodeVersion below to change the version for all platforms
     opencode-linux-x64 = {
-      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.10/opencode-linux-x64-baseline.tar.gz";
+      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.11/opencode-linux-x64-baseline.tar.gz";
       flake = false;
     };
     opencode-linux-arm64 = {
-      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.10/opencode-linux-arm64.tar.gz";
+      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.11/opencode-linux-arm64.tar.gz";
       flake = false;
     };
     opencode-darwin-arm64 = {
-      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.10/opencode-darwin-arm64.zip";
+      url = "https://github.com/anomalyco/opencode/releases/download/v1.15.11/opencode-darwin-arm64.zip";
       flake = false;
     };
   };
@@ -32,7 +32,7 @@
           config.allowUnfree = true;
         };
         # OpenCode version - update this and the input URLs above when upgrading
-        opencodeVersion = "1.15.10";
+        opencodeVersion = "1.15.11";
 
         # Map system to the appropriate opencode binary input
         opencodeBinary =
