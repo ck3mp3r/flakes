@@ -11,6 +11,7 @@ Reusable Nix library functions for multi-architecture Rust builds with internali
 - **`mkToolchain`**: Create a Rust toolchain with fenix, supporting additional targets and extra components (rustfmt, clippy, rust-analyzer).
 - **`mkRustPlatform`**: Convenience function combining `mkPkgs` and `mkToolchain` to create a configured Rust platform.
 - **`overlays.fenix`**: Fenix overlay for consumers who need direct access to fenix packages.
+- **`fetchCrate`**: Fetch a crate from static.crates.io (workaround for crates.io 403 errors). Curried: initialize with `{system, nixpkgs}`, then call with crate args.
 
 ### Helper Functions
 
@@ -44,6 +45,7 @@ Use the utilities from `lib` in your `flake.nix`:
 archiveAndHash = rustnix.lib.archiveAndHash;
 utils = rustnix.lib.utils;
 rustBuild = rustnix.lib.rust.buildTargetOutputs;
+fetchCrate = rustnix.lib.rust.fetchCrate;
 
 # Or access the entire rust lib
 rust = rustnix.lib.rust;
@@ -198,6 +200,25 @@ pkgs = import nixpkgs {
   system = "x86_64-linux";
   overlays = [ rustnix.lib.rust.overlays.fenix ];
 };
+```
+
+### `fetchCrate`
+
+Fetch a crate tarball using static.crates.io instead of the crates.io API. Useful for fetching individual crates (e.g., `wasm-bindgen-cli`) without hitting 403 errors.
+
+**Usage:**
+```nix
+let
+  fetchCrate = rustnix.lib.rust.fetchCrate {
+    inherit system;
+    nixpkgs = inputs.nixpkgs;
+  };
+in
+  fetchCrate {
+    pname = "wasm-bindgen-cli";
+    version = "0.2.122";
+    hash = "sha256-...";
+  }
 ```
 
 ## Complete Examples

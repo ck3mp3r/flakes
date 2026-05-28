@@ -184,7 +184,19 @@
         aliases);
     in
       basePackages // namedPackage // aliasPackages;
+  # Public API: fetchCrate with static.crates.io registry
+  fetchCrate = {
+    system,
+    nixpkgs,
+  }: let
+    pkgs = mkPkgs {inherit system nixpkgs;};
+  in
+    args:
+      pkgs.fetchCrate ({
+          registryDl = "https://static.crates.io/crates";
+        }
+        // args);
 in {
-  inherit buildTargetOutputs mkPkgs mkToolchain mkRustPlatform;
+  inherit buildTargetOutputs mkPkgs mkToolchain mkRustPlatform fetchCrate;
   overlays.fenix = fenix.overlays.default;
 }
