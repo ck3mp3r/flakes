@@ -7,12 +7,12 @@ Reusable Nix library functions for multi-architecture Rust builds with internali
 ### Rust Build Functions
 
 - **`buildTargetOutputs`**: Multi-architecture Rust build helper. Builds Rust projects for the current system (when it's in `supportedTargets`), handles cross-compilation automatically, and optionally archives/hashes outputs.
-- **`mkPkgs`**: Import patched nixpkgs with crates.io fix (workaround for nixpkgs#525067).
+- **`mkPkgs`**: Import nixpkgs with standard configuration (allowUnfree, optional crossSystem support).
 - **`mkToolchain`**: Create a Rust toolchain with fenix, supporting additional targets and extra components (rustfmt, clippy, rust-analyzer).
 - **`mkRustPlatform`**: Convenience function combining `mkPkgs` and `mkToolchain` to create a configured Rust platform.
 - **`overlays.fenix`**: Fenix overlay for consumers who need direct access to fenix packages.
-- **`fetchCrate`**: Fetch a crate from static.crates.io (workaround for crates.io 403 errors). Curried: initialize with `{system, nixpkgs}`, then call with crate args.
-
+- **mkCrossPkgs**: Configure cross-compilation pkgs and toolchain for a specific target. Returns { callPackage, pkgs, toolchain }.
+- **mkPackageSet**: Assemble package attribute sets from components (default, named, aliases).
 ### Helper Functions
 
 - **`archiveAndHash`**: Archive a build output into a `.tgz` and generate both a Nix-style hash and a standard SHA256 hash, all with user-friendly names. Useful for distributing and verifying build artifacts.
@@ -45,8 +45,6 @@ Use the utilities from `lib` in your `flake.nix`:
 archiveAndHash = rustnix.lib.archiveAndHash;
 utils = rustnix.lib.utils;
 rustBuild = rustnix.lib.rust.buildTargetOutputs;
-fetchCrate = rustnix.lib.rust.fetchCrate;
-
 # Or access the entire rust lib
 rust = rustnix.lib.rust;
 ```
@@ -106,7 +104,7 @@ in
 
 ### `mkPkgs`
 
-Import nixpkgs with crates.io download fix (patches fetch-crate to use static.crates.io).
+Import nixpkgs with standard configuration. Sets allowUnfree by default and supports optional crossSystem for cross-compilation.
 
 **Parameters:**
 ```nix
@@ -115,6 +113,7 @@ Import nixpkgs with crates.io download fix (patches fetch-crate to use static.cr
   nixpkgs     # nixpkgs flake input
   overlays    # List of overlays to apply (default: [])
   config      # Custom nixpkgs config (default: {}, merged with {allowUnfree = true;})
+  crossSystem # Optional cross-compilation system config (default: null)
 }
 ```
 
@@ -202,24 +201,39 @@ pkgs = import nixpkgs {
 };
 ```
 
-### `fetchCrate`
+### `mkCrossPkgs`
 
-Fetch a crate tarball using static.crates.io instead of the crates.io API. Useful for fetching individual crates (e.g., `wasm-bindgen-cli`) without hitting 403 errors.
+Configure cross-compilation nixpkgs and toolchain for a specific target.
 
-**Usage:**
+**Parameters:**
 ```nix
-let
-  fetchCrate = rustnix.lib.rust.fetchCrate {
-    inherit system;
-    nixpkgs = inputs.nixpkgs;
-  };
-in
-  fetchCrate {
-    pname = "wasm-bindgen-cli";
-    version = "0.2.122";
-    hash = "sha256-...";
-  }
+{
+  system              # Build system (e.g., "x86_64-linux")
+  target              # Target system (e.g., "aarch64-linux")
+  nixpkgs             # nixpkgs flake input
+  overlays            # List of nixpkgs overlays
+  additionalTargets   # Extra Rust targets (default: [])
+  linuxVariant        # "musl" or "gnu" (default: "musl")
+}
 ```
+
+**Returns:** `{ callPackage, pkgs, toolchain }`
+
+### `mkPackageSet`
+
+Assemble the final package attribute set from components.
+
+**Parameters:**
+```nix
+{
+  defaultPackage   # The default package derivation
+  mainPackage      # The main (named) package derivation
+  packageName      # Custom package name (default: null)
+  aliases          # List of alias names (default: [])
+}
+```
+
+**Returns:** `{ default = defaultPackage; } // optional named package // optional aliases`
 
 ## Complete Examples
 
@@ -368,9 +382,9 @@ The dev shell includes:
 
 - **No `--no-pure-eval` needed**: Previous devenv dependency has been removed
 - **fenix is internalized**: Consumers don't need to add fenix as a direct input
-- **Patched nixpkgs**: Includes workaround for crates.io 403 errors (uses static.crates.io)
 - **Static linking by default**: Linux targets use musl for static binaries
 - **Per-system packages**: `buildTargetOutputs` only returns packages for the current system
+- **packages.toolchain**: Pre-built stable Rust toolchain available as a flake package output (`inputs.rustnix.packages.${system}.toolchain`)
 
 ## Migration from Old API
 

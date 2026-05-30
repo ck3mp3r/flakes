@@ -34,8 +34,11 @@
           overlays = [inputs.base-nixpkgs.overlays.default];
           config.allowUnfree = true;
         };
+        rustLib = import ./lib/rust {inherit (inputs) fenix;};
       in {
-        packages = {};
+        packages = {
+          toolchain = rustLib.mkToolchain {inherit system;};
+        };
 
         formatter = pkgs.alejandra;
 

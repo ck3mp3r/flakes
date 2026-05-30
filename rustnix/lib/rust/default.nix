@@ -1,27 +1,22 @@
 {fenix}: let
   utils = import ../utils.nix;
 
-  # Workaround: crates.io API returns 403 for downloads.
-  # Patch nixpkgs to use static.crates.io. Remove when nixpkgs#525067 is merged.
-  patchedNixpkgs = system: nixpkgs: let
-    unpatchedPkgs = import nixpkgs {inherit system;};
-  in
-    unpatchedPkgs.applyPatches {
-      name = "nixpkgs-fetchcrate-patched";
-      src = nixpkgs;
-      patches = [../../patches/fetchcrate-static-url.patch];
-    };
-
   mkPkgs = {
     system,
     nixpkgs,
     overlays ? [],
     config ? {},
+    crossSystem ? null,
   }:
-    import (patchedNixpkgs system nixpkgs) {
-      inherit system overlays;
-      config = {allowUnfree = true;} // config;
-    };
+    import nixpkgs ({
+        inherit system overlays;
+        config = {allowUnfree = true;} // config;
+      }
+      // (
+        if crossSystem != null
+        then {inherit crossSystem;}
+        else {}
+      ));
 
   mkToolchain = {
     system,
@@ -57,6 +52,77 @@
       rustc = toolchain;
     };
 
+  # Configure cross-compilation pkgs for a specific target
+  mkCrossPkgs = {
+    system,
+    target,
+    nixpkgs,
+    overlays,
+    additionalTargets ? [],
+    linuxVariant ? "musl",
+  }: let
+    fenixTarget = utils.getTarget {
+      system = target;
+      variant = linuxVariant;
+    };
+    isTargetLinux = builtins.match ".*-linux" target != null;
+    isCrossCompiling = target != system;
+
+    # Import nixpkgs with cross-compilation support when needed
+    tmpPkgs =
+      if isCrossCompiling || isTargetLinux
+      then
+        mkPkgs {
+          inherit system nixpkgs overlays;
+          crossSystem = {
+            config = fenixTarget;
+            rustc = {config = fenixTarget;};
+            isStatic = isTargetLinux; # Static musl builds for Linux
+          };
+        }
+      else mkPkgs {inherit system nixpkgs overlays;};
+
+    # Toolchain always comes from build system
+    toolchain = with fenix.packages.${system};
+      combine (
+        [
+          stable.cargo
+          stable.rustc
+          targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
+        ]
+        ++ (map (t: targets.${t}.stable.rust-std) additionalTargets)
+      );
+    callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
+      // {
+        config = fenixTarget;
+        inherit toolchain;
+      });
+  in {
+    inherit callPackage;
+    pkgs = tmpPkgs;
+    inherit toolchain;
+  };
+
+  # Assemble the final package attribute set from components
+  mkPackageSet = {
+    defaultPackage,
+    mainPackage,
+    packageName ? null,
+    aliases ? [],
+  }: let
+    basePackages = {default = defaultPackage;};
+    namedPackage =
+      if packageName != null
+      then {${packageName} = mainPackage;}
+      else {};
+    aliasPackages = builtins.listToAttrs (map (alias: {
+        name = alias;
+        value = mainPackage;
+      })
+      aliases);
+  in
+    basePackages // namedPackage // aliasPackages;
+
   buildTargetOutputs = {
     archiveAndHash ? false,
     buildInputs ? [],
@@ -71,64 +137,19 @@
     packageName ? null,
     pkgs,
     src,
-    system, # Build system (your machine)
-    supportedTargets, # List of target architectures to support
+    system,
+    supportedTargets,
     aliases ? [],
-    additionalTargets ? [], # Additional Rust targets to include in toolchain (e.g., ["wasm32-unknown-unknown"])
-  }: let
-    # Check if current system is supported
-    isSystemSupported = builtins.elem system supportedTargets;
-
-    # Configure cross-compilation for a specific target
-    crossPkgs = target: let
-      fenixTarget = utils.getTarget {
-        system = target;
-        variant = linuxVariant;
-      };
-      isTargetLinux = builtins.match ".*-linux" target != null;
-      isCrossCompiling = target != system;
-
-      # Import nixpkgs with cross-compilation support when needed
-      tmpPkgs =
-        if isCrossCompiling || isTargetLinux
-        then
-          import (patchedNixpkgs system nixpkgs) {
-            inherit overlays system; # Build on 'system'
-            crossSystem = {
-              config = fenixTarget;
-              rustc = {config = fenixTarget;};
-              isStatic = isTargetLinux; # Static musl builds for Linux
-            };
-          }
-        else import (patchedNixpkgs system nixpkgs) {inherit overlays system;};
-
-      # Toolchain always comes from build system
-      toolchain = with fenix.packages.${system};
-        combine (
-          [
-            stable.cargo
-            stable.rustc
-            targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
-          ]
-          ++ (map (target: targets.${target}.stable.rust-std) additionalTargets)
-        );
-      callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
-        // {
-          config = fenixTarget;
-          inherit toolchain;
-        });
-    in {
-      inherit callPackage;
-      pkgs = tmpPkgs;
-      inherit toolchain;
-    };
-  in
-    # Only build package if current system is supported
-    if !isSystemSupported
+    additionalTargets ? [],
+  }:
+    if !(builtins.elem system supportedTargets)
     then {}
     else let
-      # Build package for current system only
-      cross = crossPkgs system;
+      cross = mkCrossPkgs {
+        inherit system nixpkgs overlays additionalTargets linuxVariant;
+        target = system;
+      };
+
       mergedExtraArgs =
         extraArgs
         // {
@@ -136,14 +157,12 @@
           nativeBuildInputs = (extraArgs.nativeBuildInputs or []) ++ nativeBuildInputs;
         };
 
-      # Build binary package
       binaryPackage = cross.callPackage ./build.nix {
         inherit cargoToml cargoLock src;
         extraArgs = mergedExtraArgs;
         inherit (cross) toolchain;
       };
 
-      # Create distribution bundle if requested
       archiveAndHashLib = import ../archiveAndHash.nix;
       distributionBundle = archiveAndHashLib {
         inherit pkgs;
@@ -151,13 +170,11 @@
         inherit (cargoToml.package) name;
       };
 
-      # Choose main package based on archiveAndHash flag
       mainPackage =
         if archiveAndHash
         then distributionBundle
         else binaryPackage;
 
-      # Pre-built installer from installData (if available)
       defaultPackage =
         if installData != null && installData ? ${system}
         then
@@ -166,37 +183,11 @@
             data = installData.${system};
           }
         else mainPackage;
-
-      # Create base packages
-      basePackages = {default = defaultPackage;};
-
-      # Add main package with custom name (respects archiveAndHash flag)
-      namedPackage =
-        if packageName != null
-        then {${packageName} = mainPackage;}
-        else {};
-
-      # Add aliases pointing to main package (respects archiveAndHash flag)
-      aliasPackages = builtins.listToAttrs (map (alias: {
-          name = alias;
-          value = mainPackage;
-        })
-        aliases);
     in
-      basePackages // namedPackage // aliasPackages;
-  # Public API: fetchCrate with static.crates.io registry
-  fetchCrate = {
-    system,
-    nixpkgs,
-  }: let
-    pkgs = mkPkgs {inherit system nixpkgs;};
-  in
-    args:
-      pkgs.fetchCrate ({
-          registryDl = "https://static.crates.io/crates";
-        }
-        // args);
+      mkPackageSet {
+        inherit defaultPackage mainPackage packageName aliases;
+      };
 in {
-  inherit buildTargetOutputs mkPkgs mkToolchain mkRustPlatform fetchCrate;
+  inherit buildTargetOutputs mkCrossPkgs mkPackageSet mkPkgs mkToolchain mkRustPlatform;
   overlays.fenix = fenix.overlays.default;
 }
