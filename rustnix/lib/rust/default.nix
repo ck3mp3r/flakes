@@ -135,6 +135,7 @@
     nixpkgs,
     overlays,
     packageName ? null,
+    workspaceMember ? null,
     pkgs,
     src,
     system,
@@ -158,7 +159,7 @@
         };
 
       binaryPackage = cross.callPackage ./build.nix {
-        inherit cargoToml cargoLock src;
+        inherit cargoToml cargoLock src workspaceMember;
         extraArgs = mergedExtraArgs;
         inherit (cross) toolchain;
       };
@@ -167,7 +168,10 @@
       distributionBundle = archiveAndHashLib {
         inherit pkgs;
         drv = binaryPackage;
-        inherit (cargoToml.package) name;
+        name =
+          if workspaceMember != null
+          then workspaceMember
+          else cargoToml.package.name;
       };
 
       mainPackage =
@@ -179,7 +183,7 @@
         if installData != null && installData ? ${system}
         then
           pkgs.callPackage ./install.nix {
-            inherit cargoToml;
+            inherit cargoToml workspaceMember;
             data = installData.${system};
           }
         else mainPackage;
