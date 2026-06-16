@@ -2,12 +2,23 @@
   cargoLock,
   cargoToml,
   extraArgs ? {},
+  workspaceMember ? null,
   pkgs,
   src,
   toolchain,
 }: let
-  pname = cargoToml.package.name;
-  inherit (cargoToml.package) version;
+  pname =
+    if workspaceMember != null
+    then workspaceMember
+    else cargoToml.package.name;
+  version =
+    if cargoToml ? package
+    then cargoToml.package.version
+    else cargoToml.workspace.package.version;
+  cargoBuildFlags =
+    if workspaceMember != null
+    then ["-p" workspaceMember]
+    else [];
 
   drv =
     (pkgs.makeRustPlatform {
@@ -19,6 +30,7 @@
           version
           src
           cargoLock
+          cargoBuildFlags
           ;
         buildInputs = extraArgs.buildInputs or [];
         nativeBuildInputs = extraArgs.nativeBuildInputs or [];

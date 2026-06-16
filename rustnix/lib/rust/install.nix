@@ -1,11 +1,18 @@
 {
   cargoToml,
   data,
+  workspaceMember ? null,
   pkgs,
 }:
 pkgs.stdenvNoCC.mkDerivation rec {
-  pname = cargoToml.package.name;
-  inherit (cargoToml.package) version;
+  pname =
+    if workspaceMember != null
+    then workspaceMember
+    else cargoToml.package.name;
+  version =
+    if cargoToml ? package
+    then cargoToml.package.version
+    else cargoToml.workspace.package.version;
 
   src = pkgs.fetchurl {
     inherit (data) url;
