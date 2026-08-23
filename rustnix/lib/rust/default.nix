@@ -18,6 +18,39 @@
         else {}
       ));
 
+  # fenix bug: on Darwin, rust-objcopy/rust-lld load `@rpath/libLLVM.dylib`
+  # relative to `@loader_path/../lib`, i.e. `$lib/rustlib/<triplet>/lib`, but the
+  # dylib only ships at `$out/lib/libLLVM.dylib`. The fenix `combine` (symlinkJoin)
+  # only materializes `$out/bin` and `librustc_driver-*`, so this must be fixed in
+  # the rustc component itself (rustc-unwrapped) before toolchain assembly.
+  rustcFor = system: let
+    p = fenix.packages.${system};
+    isDarwin = builtins.match ".*-darwin" system != null;
+    rustc =
+      if isDarwin
+      then p.stable.rustc-unwrapped
+      else p.stable.rustc;
+  in
+    if !isDarwin
+    then rustc
+    else
+      rustc.overrideAttrs (old: {
+        installPhase =
+          (old.installPhase or "")
+          + ''
+            if [ -d "$out/lib" ] && [ -e "$out/lib/libLLVM.dylib" ]; then
+              for tgt in "$out"/lib/rustlib/*; do
+                if [ -d "$tgt" ] && [ -e "$tgt/bin/rust-objcopy" ]; then
+                  mkdir -p "$tgt/lib"
+                  if [ ! -e "$tgt/lib/libLLVM.dylib" ]; then
+                    ln -s "$out/lib/libLLVM.dylib" "$tgt/lib/libLLVM.dylib"
+                  fi
+                fi
+              done
+            fi
+          '';
+      });
+
   mkToolchain = {
     system,
     targets ? [],
@@ -27,7 +60,7 @@
     fenixTarget = utils.getTarget {inherit system variant;};
     baseToolchain = [
       fenix.packages.${system}.stable.cargo
-      fenix.packages.${system}.stable.rustc
+      (rustcFor system)
       fenix.packages.${system}.targets.${fenixTarget}.stable.rust-std
     ];
     additionalStd = map (t: fenix.packages.${system}.targets.${t}.stable.rust-std) targets;
@@ -87,7 +120,7 @@
       combine (
         [
           stable.cargo
-          stable.rustc
+          (rustcFor system)
           targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
         ]
         ++ (map (t: targets.${t}.stable.rust-std) additionalTargets)
