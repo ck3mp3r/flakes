@@ -36,7 +36,7 @@
               stern
               tilt
             ]
-            ++ lib.optionals stdenv.isDarwin [colima];
+            ++ lib.optionals stdenv.hostPlatform.isDarwin [colima];
           pathsToLink = ["/bin" "/share"];
         };
       in {

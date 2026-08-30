@@ -35,7 +35,7 @@
         buildInputs = extraArgs.buildInputs or [];
         nativeBuildInputs = extraArgs.nativeBuildInputs or [];
 
-        postFixup = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+        postFixup = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
           for bin in $out/bin/*; do
             if [[ -f "$bin" && -x "$bin" ]]; then
               # Replace Nix store paths with system paths for common libraries
