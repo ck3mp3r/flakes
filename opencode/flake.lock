@@ -91,40 +91,40 @@
     "opencode-darwin-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1790806972,
-        "narHash": "sha256-yy/ES/fNm4dpSG5oVXYptT7GKiGi13vUdX/4dRHB08M=",
+        "lastModified": 1791317085,
+        "narHash": "sha256-QJXsy3ZE7CbUJGs5RLduWdiZA5wgNclzxEtXE8gE534=",
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-darwin-arm64.zip"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-darwin-arm64.zip"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-darwin-arm64.zip"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-darwin-arm64.zip"
       }
     },
     "opencode-linux-arm64": {
       "flake": false,
       "locked": {
-        "lastModified": 1790806690,
-        "narHash": "sha256-elv0QDzySWD4nArijXKRqouDwxJG5oIpgs8vwEkjfiY=",
+        "lastModified": 1791316815,
+        "narHash": "sha256-dmfkYGrCXdhlriojW0PQ+hGmDRIx4lst1tkFDm+KfGE=",
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-linux-arm64.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-linux-arm64.tar.gz"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-linux-arm64.tar.gz"
       }
     },
     "opencode-linux-x64": {
       "flake": false,
       "locked": {
-        "lastModified": 1790806694,
-        "narHash": "sha256-Bd3+gWBUdZLp3glxDPocwyVLD1X5MNbzUkQKyDwyXik=",
+        "lastModified": 1791316819,
+        "narHash": "sha256-I/5/azd6dji0EFvpEOb3JQan1rXd2qDJmJEZP1EeYTY=",
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-linux-x64-baseline.tar.gz"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-linux-x64-baseline.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.34/opencode-linux-x64-baseline.tar.gz"
+        "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.35/opencode-linux-x64-baseline.tar.gz"
       }
     },
     "root": {
