@@ -204,7 +204,9 @@
         name =
           if workspaceMember != null
           then workspaceMember
-          else cargoToml.package.name;
+          else if cargoToml ? package
+          then cargoToml.package.name
+          else cargoToml.workspace.package.name;
       };
 
       mainPackage =
