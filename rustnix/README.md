@@ -8,7 +8,7 @@ Reusable Nix library functions for multi-architecture Rust builds with internali
 
 - **`buildTargetOutputs`**: Multi-architecture Rust build helper. Builds Rust projects for the current system (when it's in `supportedTargets`), handles cross-compilation automatically, and optionally archives/hashes outputs.
 - **`mkPkgs`**: Import nixpkgs with standard configuration (allowUnfree, optional crossSystem support).
-- **`mkToolchain`**: Create a Rust toolchain with fenix, supporting additional targets and extra components (rustfmt, clippy, rust-analyzer).
+- **`mkToolchain`**: Create a Rust toolchain with fenix, supporting additional targets and extra components (rustfmt, clippy, rust-analyzer, llvm-tools, rust-src, rustc-dev).
 - **`mkRustPlatform`**: Convenience function combining `mkPkgs` and `mkToolchain` to create a configured Rust platform.
 - **`overlays.fenix`**: Fenix overlay for consumers who need direct access to fenix packages.
 - **mkCrossPkgs**: Configure cross-compilation pkgs and toolchain for a specific target. Returns { callPackage, pkgs, toolchain }.
@@ -78,6 +78,7 @@ Builds a Rust package for the current system (when supported). Returns packages 
   extraArgs            # Additional args passed to build (default: {})
   installData          # Pre-built installer data by system (default: null)
   additionalTargets    # Extra Rust targets (e.g., ["wasm32-unknown-unknown"]) (default: [])
+  extras               # Extra fenix components (e.g., ["llvm-tools" "rust-src"]) (default: [])
 }
 ```
 
@@ -135,7 +136,7 @@ Create a Rust toolchain from fenix with additional targets and components.
 {
   system    # Build system (e.g., "x86_64-linux")
   targets   # Additional target triples to include (default: [])
-  extras    # Extra components: "rustfmt", "clippy", "rust-analyzer" (default: [])
+  extras    # Extra fenix components: "rustfmt", "clippy", "rust-analyzer", "llvm-tools", "rust-src", "rustc-dev" (default: [])
   variant   # Linux variant: "musl" or "gnu" (default: "musl")
 }
 ```
@@ -213,6 +214,7 @@ Configure cross-compilation nixpkgs and toolchain for a specific target.
   nixpkgs             # nixpkgs flake input
   overlays            # List of nixpkgs overlays
   additionalTargets   # Extra Rust targets (default: [])
+  extras              # Extra fenix components, e.g. ["llvm-tools"] (default: [])
   linuxVariant        # "musl" or "gnu" (default: "musl")
 }
 ```
@@ -316,6 +318,46 @@ packages = inputs.rustnix.lib.rust.buildTargetOutputs {
 }
 ```
 
+### Coverage with cargo-llvm-cov
+
+`mkToolchain` accepts `llvm-tools` as an extra component. The resulting toolchain ships
+`llvm-cov` and `llvm-profdata` under `lib/rustlib/<host>/bin`, which is where
+`cargo llvm-cov` looks for them relative to `rustc --print sysroot`.
+
+```nix
+{
+  perSystem = {pkgs, system, ...}: let
+    rustLib = inputs.rustnix.lib.rust;
+    toolchain = rustLib.mkToolchain {
+      inherit system;
+      extras = ["llvm-tools"];
+    };
+    cargoLlvmCov = pkgs.cargo-llvm-cov.overrideAttrs (_: {doCheck = false;});
+  in {
+    devShells.coverage = pkgs.mkShellNoCC {
+      packages = [toolchain cargoLlvmCov];
+    };
+  };
+}
+```
+
+Run it from the shell:
+
+```bash
+nix develop .#coverage -c cargo llvm-cov --summary-only
+```
+
+`doCheck = false` is required because the cargo-llvm-cov test suite runs instrumented
+binaries and fails inside the Nix build sandbox.
+
+Notes:
+
+- Coverage is a development-shell feature; `buildTargetOutputs` does not run instrumented builds.
+- On Linux the toolchain must contain the host `rust-std` (`gnu`) in addition to any cross
+  target stdlibs. `mkToolchain` defaults to musl, so pass the host target in `targets` when
+  running coverage on Linux.
+- `llvm-tools` is a host component. It does not provide coverage for cross-compiled binaries.
+
 ### Using archiveAndHash Standalone
 
 ```nix
@@ -385,6 +427,7 @@ The dev shell includes:
 - **Static linking by default**: Linux targets use musl for static binaries
 - **Per-system packages**: `buildTargetOutputs` only returns packages for the current system
 - **packages.toolchain**: Pre-built stable Rust toolchain available as a flake package output (`inputs.rustnix.packages.${system}.toolchain`)
+- **packages.cargo-llvm-cov**: cargo-llvm-cov built without the upstream test suite; also provided by `devShells.coverage`
 
 ## Migration from Old API
 

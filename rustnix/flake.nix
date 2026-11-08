@@ -35,9 +35,13 @@
           config.allowUnfree = true;
         };
         rustLib = import ./lib/rust {inherit (inputs) fenix;};
+        cargoLlvmCov = pkgs.cargo-llvm-cov.overrideAttrs (_: {
+          doCheck = false;
+        });
       in {
         packages = {
           toolchain = rustLib.mkToolchain {inherit system;};
+          cargo-llvm-cov = cargoLlvmCov;
         };
 
         formatter = pkgs.alejandra;
@@ -47,6 +51,20 @@
             alejandra
             inputs'.fenix.packages.stable.toolchain
           ];
+        };
+
+        devShells.coverage = pkgs.mkShellNoCC {
+          name = "rust-coverage";
+          packages = [
+            (rustLib.mkToolchain {
+              inherit system;
+              extras = ["llvm-tools"];
+            })
+            cargoLlvmCov
+          ];
+          shellHook = ''
+            echo "cargo llvm-cov is available; llvm-tools come from the rustnix toolchain"
+          '';
         };
 
         checks = {
