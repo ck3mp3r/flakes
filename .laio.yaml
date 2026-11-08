@@ -10,9 +10,10 @@ windows:
           - command: nvim
       - flex: 1
         commands:
-          - command: ^opencode
+          - command: ^agent
             args:
-              - --port
+              - --agent
+              - developer
 
   - name: misc
     panes:
