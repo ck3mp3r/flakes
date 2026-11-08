@@ -92,6 +92,7 @@
     nixpkgs,
     overlays,
     additionalTargets ? [],
+    extras ? [],
     linuxVariant ? "musl",
   }: let
     fenixTarget = utils.getTarget {
@@ -124,6 +125,7 @@
           targets.${fenixTarget}.stable.rust-std # Target-specific stdlib
         ]
         ++ (map (t: targets.${t}.stable.rust-std) additionalTargets)
+        ++ (map (e: stable.${e}) extras)
       );
     callPackage = tmpPkgs.lib.callPackageWith (tmpPkgs
       // {
@@ -162,6 +164,7 @@
     cargoLock,
     cargoToml,
     extraArgs ? {},
+    extras ? [],
     installData,
     linuxVariant ? "musl",
     nativeBuildInputs ? [],
@@ -180,7 +183,7 @@
     then {}
     else let
       cross = mkCrossPkgs {
-        inherit system nixpkgs overlays additionalTargets linuxVariant;
+        inherit system nixpkgs overlays additionalTargets extras linuxVariant;
         target = system;
       };
 
