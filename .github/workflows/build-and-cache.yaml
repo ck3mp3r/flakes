@@ -56,7 +56,7 @@ jobs:
           }
 
           # Determine if we should cache
-          let should_cache = ($env.GITHUB_REF == "refs/heads/main")
+          let should_cache = ($env.GITHUB_REF == "refs/heads/main") or ($env.GITHUB_REF == "refs/heads/fix/migrate-ci-nix-publish")
 
           # Build all flakes
           let build_results = ($buildable_flakes | ci nix build)
